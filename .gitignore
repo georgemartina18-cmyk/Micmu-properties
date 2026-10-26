@@ -1,0 +1,16 @@
+node_modules/
+.next/
+.open-next/
+.wrangler/
+.env*
+!.env.example
+!.env.test.example
+test-results/
+playwright-report/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# Owner-supplied proposal files remain local.
+/docs/CLIENT_REQUIREMENTS.pdf
+/docs/PROJECT_BRIEF.md

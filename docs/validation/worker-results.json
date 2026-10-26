@@ -1,0 +1,200 @@
+{
+  "testedAt": "2026-10-26T02:53:06.953Z",
+  "target": "local Cloudflare workerd; no external services configured",
+  "checks": [
+    {
+      "name": "/ HTTP 200 and no samples",
+      "passed": true
+    },
+    {
+      "name": "/ prelaunch noindex",
+      "passed": true
+    },
+    {
+      "name": "/properties HTTP 200 and no samples",
+      "passed": true
+    },
+    {
+      "name": "/properties prelaunch noindex",
+      "passed": true
+    },
+    {
+      "name": "/about HTTP 200 and no samples",
+      "passed": true
+    },
+    {
+      "name": "/about prelaunch noindex",
+      "passed": true
+    },
+    {
+      "name": "/contact HTTP 200 and no samples",
+      "passed": true
+    },
+    {
+      "name": "/contact prelaunch noindex",
+      "passed": true
+    },
+    {
+      "name": "/book-inspection HTTP 200 and no samples",
+      "passed": true
+    },
+    {
+      "name": "/book-inspection prelaunch noindex",
+      "passed": true
+    },
+    {
+      "name": "/businesses HTTP 200 and no samples",
+      "passed": true
+    },
+    {
+      "name": "/businesses prelaunch noindex",
+      "passed": true
+    },
+    {
+      "name": "/estates HTTP 200 and no samples",
+      "passed": true
+    },
+    {
+      "name": "/estates prelaunch noindex",
+      "passed": true
+    },
+    {
+      "name": "/developments HTTP 200 and no samples",
+      "passed": true
+    },
+    {
+      "name": "/developments prelaunch noindex",
+      "passed": true
+    },
+    {
+      "name": "/news HTTP 200 and no samples",
+      "passed": true
+    },
+    {
+      "name": "/news prelaunch noindex",
+      "passed": true
+    },
+    {
+      "name": "/faq HTTP 200 and no samples",
+      "passed": true
+    },
+    {
+      "name": "/faq prelaunch noindex",
+      "passed": true
+    },
+    {
+      "name": "/privacy HTTP 200 and no samples",
+      "passed": true
+    },
+    {
+      "name": "/privacy prelaunch noindex",
+      "passed": true
+    },
+    {
+      "name": "/terms HTTP 200 and no samples",
+      "passed": true
+    },
+    {
+      "name": "/terms prelaunch noindex",
+      "passed": true
+    },
+    {
+      "name": "admin redirects without a session",
+      "passed": true
+    },
+    {
+      "name": "cross-origin write denied",
+      "passed": true
+    },
+    {
+      "name": "unconfigured submission not acknowledged",
+      "passed": true
+    },
+    {
+      "name": "Wi-Fi emulation content visible",
+      "passed": true
+    },
+    {
+      "name": "Wi-Fi emulation no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "4G emulation content visible",
+      "passed": true
+    },
+    {
+      "name": "4G emulation no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "Slow 4G emulation content visible",
+      "passed": true
+    },
+    {
+      "name": "Slow 4G emulation no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "Constrained 3G emulation content visible",
+      "passed": true
+    },
+    {
+      "name": "Constrained 3G emulation no horizontal overflow",
+      "passed": true
+    },
+    {
+      "name": "offline fallback contains no stale prices",
+      "passed": true
+    },
+    {
+      "name": "offline fallback has no property prices",
+      "passed": true
+    },
+    {
+      "name": "connection recovery works",
+      "passed": true
+    },
+    {
+      "name": "production Lite Mode persists",
+      "passed": true
+    }
+  ],
+  "network": [
+    {
+      "name": "Wi-Fi emulation",
+      "latencyMs": 10,
+      "downloadBytesPerSecond": 5000000,
+      "uploadBytesPerSecond": 2000000,
+      "networkIdleMs": 994,
+      "encodedTransferBytes": 173840,
+      "note": "One local run; simulated network; not physical devices, Lighthouse or field CWV."
+    },
+    {
+      "name": "4G emulation",
+      "latencyMs": 60,
+      "downloadBytesPerSecond": 1600000,
+      "uploadBytesPerSecond": 750000,
+      "networkIdleMs": 1078,
+      "encodedTransferBytes": 170437,
+      "note": "One local run; simulated network; not physical devices, Lighthouse or field CWV."
+    },
+    {
+      "name": "Slow 4G emulation",
+      "latencyMs": 150,
+      "downloadBytesPerSecond": 200000,
+      "uploadBytesPerSecond": 90000,
+      "networkIdleMs": 2199,
+      "encodedTransferBytes": 173058,
+      "note": "One local run; simulated network; not physical devices, Lighthouse or field CWV."
+    },
+    {
+      "name": "Constrained 3G emulation",
+      "latencyMs": 400,
+      "downloadBytesPerSecond": 50000,
+      "uploadBytesPerSecond": 25000,
+      "networkIdleMs": 5808,
+      "encodedTransferBytes": 173826,
+      "note": "One local run; simulated network; not physical devices, Lighthouse or field CWV."
+    }
+  ]
+}
