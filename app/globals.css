@@ -1662,19 +1662,19 @@ th {
   width: 108px;
   aspect-ratio: 1700 / 1220;
   flex-shrink: 0;
-  background: #fff;
+  background: transparent;
 }
 .company-logo img {
   position: absolute;
-  width: 176.4706%;
+  width: 100%;
   max-width: none;
   height: auto;
-  left: -38.2353%;
-  top: -72.9508%;
+  left: 0;
+  top: 0;
 }
 .company-logo-dark {
   width: 180px;
-  background: #191919;
+  background: transparent;
 }
 @media (max-width: 600px) {
   .company-logo {

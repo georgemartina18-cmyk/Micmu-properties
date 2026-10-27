@@ -4,10 +4,10 @@ export function BrandLogo({ dark = false }: { dark?: boolean }) {
   return (
     <span className={`company-logo${dark ? " company-logo-dark" : ""}`}>
       <Image
-        src={`/brand/micmu-${dark ? "black" : "white"}.jpg`}
+        src="/brand/micmu-transparent.png"
         alt="MICMU Properties"
-        width={3000}
-        height={3000}
+        width={680}
+        height={488}
         unoptimized
         loading={dark ? "lazy" : "eager"}
       />
