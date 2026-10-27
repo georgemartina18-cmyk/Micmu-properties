@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Link from "next/link";
+import { BrandLogo } from "@/components/brand-logo";
 import { OfflineRegistration } from "@/components/offline-registration";
 import { Header } from "@/components/header";
 import { settings } from "@/lib/data";
@@ -62,12 +63,7 @@ export default async function RootLayout({
           <div className="shell">
             <div className="footer-top">
               <Link href="/" className="brand footer-brand">
-                <span className="brand-symbol" aria-hidden="true">
-                  M<span>◇</span>
-                </span>
-                <span>
-                  MICMU<small>PROPERTIES LIMITED</small>
-                </span>
+                <BrandLogo dark />
               </Link>
               <p>
                 A considered approach.

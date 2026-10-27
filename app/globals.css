@@ -1653,3 +1653,34 @@ th {
     grid-template-columns: 1fr;
   }
 }
+
+/* Display the supplied artwork without the presentation canvas margins. */
+.company-logo {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  width: 108px;
+  aspect-ratio: 1700 / 1220;
+  flex-shrink: 0;
+  background: #fff;
+}
+.company-logo img {
+  position: absolute;
+  width: 176.4706%;
+  max-width: none;
+  height: auto;
+  left: -38.2353%;
+  top: -72.9508%;
+}
+.company-logo-dark {
+  width: 180px;
+  background: #191919;
+}
+@media (max-width: 600px) {
+  .company-logo {
+    width: 90px;
+  }
+  .company-logo-dark {
+    width: 150px;
+  }
+}

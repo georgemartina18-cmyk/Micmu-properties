@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { BrandLogo } from "./brand-logo";
 import { useEffect, useState } from "react";
 import { ArrowUpRight, Menu, X, Leaf } from "lucide-react";
 const links = [
@@ -42,12 +43,7 @@ export function Header() {
     <header className="site-header">
       <div className="shell header-inner">
         <Link href="/" className="brand" aria-label="MICMU Properties home">
-          <span className="brand-symbol" aria-hidden="true">
-            M<span>◇</span>
-          </span>
-          <span>
-            MICMU<small>PROPERTIES LIMITED</small>
-          </span>
+          <BrandLogo />
         </Link>
         <nav aria-label="Main navigation" className="desktop-nav">
           {links.map(([label, url]) => (
