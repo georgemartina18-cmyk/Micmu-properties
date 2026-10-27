@@ -55,13 +55,24 @@ Forms require the database, server submission key and Turnstile. They do not rep
 
 ## 4. Connect approved public media
 
-After cost approval, create an R2 bucket owned by MICMU. Add its actual binding to `wrangler.jsonc`:
+Use the existing MICMU Supabase project. Run
+[`202610280001_supabase_images.sql`](../supabase/migrations/202610280001_supabase_images.sql)
+in its SQL Editor. This additive, rerunnable migration creates the private
+`micmu-images` bucket and access policies. It does not alter `client-documents`.
+No R2 subscription, binding, or new secret key is needed for new uploads.
 
-```json
-"r2_buckets": [{"binding":"MICMU_MEDIA","bucket_name":"YOUR_APPROVED_BUCKET"}]
-```
+MFA-verified administrators can upload JPEG, PNG and WebP images up to 5 MB.
+The upload form requires ownership evidence and explicit public-image approval.
+Only objects with approved metadata can be read anonymously. The media API keeps
+its `/api/media/<id>` URLs. Previously stored R2 assets still require their
+original `MICMU_MEDIA` binding; new objects use `supabase/approved/` keys.
 
-No binding is pre-created. The app serves approved images through its media API. Do not expose private customer records through this bucket. Responsive derivatives and transformations still need implementation/validation before high-volume mobile launch. Original videos should not be uploaded through the image interface; Cloudflare Stream remains optional and requires separate approval.
+After Cloudflare deploys, test one permitted image in Administration → Media
+library, open the returned URL in an Incognito window, and attach its path to a
+draft property. Storage/download usage counts against the existing Supabase
+plan's limits. Do not upload private customer records through this interface.
+Responsive derivatives and transformations still need validation before a
+high-volume launch. Videos use a separate workflow.
 
 ## 5. Build and validate a local Worker
 
@@ -77,7 +88,7 @@ npm run cf:preview
 
 `cf:preview` uses Wrangler's local Worker runtime, not production. Cloud sandboxes may need writable tool directories: `XDG_CONFIG_HOME=/tmp/micmu-config WRANGLER_LOG_PATH=/tmp/micmu-wrangler.log npm run cf:preview`.
 
-For local Worker secret bindings, use an ignored `.dev.vars` file. Never use a production database for automated test data. Validate live staging authentication, RLS, form persistence, retries, R2 and private document access before publishing.
+For local Worker secret bindings, use an ignored `.dev.vars` file. Never use a production database for automated test data. Validate live staging authentication, RLS, form persistence, retries, Supabase images and private document access before publishing.
 
 ## 6. Production approval and domain
 

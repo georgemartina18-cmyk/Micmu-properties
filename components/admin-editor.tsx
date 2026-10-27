@@ -579,8 +579,8 @@ export function MediaUpload() {
         </p>
       )}
       <p className="form-note">
-        R2 binding required. Videos and private documents use separate
-        workflows; do not upload them here.
+        Images use MICMU’s Supabase storage. Videos and private documents use
+        separate workflows; do not upload them here.
       </p>
     </form>
   );

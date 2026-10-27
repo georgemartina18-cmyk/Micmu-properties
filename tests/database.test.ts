@@ -27,6 +27,7 @@ beforeAll(async () => {
     "202610260003_marketplace_requirements.sql",
     "202610260004_dashboard_notifications.sql",
     "202610260005_approved_people_content.sql",
+    "202610280001_supabase_images.sql",
   ])
     await db.exec(readFileSync(`supabase/migrations/${file}`, "utf8"));
   await db.exec(
@@ -224,5 +225,69 @@ describe("PostgreSQL migrations and access rules", () => {
     expect((await db.query(`select * from notifications`)).rows).toHaveLength(
       0,
     );
+  });
+});
+
+describe("Supabase image storage access", () => {
+  it("allows only approved images to anonymous readers without exposing metadata", async () => {
+    await db.exec(
+      "reset role; grant select,insert,update,delete on storage.objects to anon,authenticated;",
+    );
+    await db.exec(`insert into public.media_assets(id,filename,object_key,content_type,source,category,approved) values
+      ('44444444-4444-4444-8444-444444444444','approved.png','supabase/approved/visible','image/png','test permission','test',true),
+      ('55555555-5555-4555-8555-555555555555','private.png','supabase/approved/hidden','image/png','private evidence','test',false);
+      insert into storage.objects(bucket_id,name) values
+      ('micmu-images','supabase/approved/visible'),('micmu-images','supabase/approved/hidden'),('micmu-images','supabase/approved/orphan');`);
+    await role("anon");
+    expect(
+      (
+        await db.query(
+          "select name from storage.objects where bucket_id='micmu-images'",
+        )
+      ).rows,
+    ).toEqual([{ name: "supabase/approved/visible" }]);
+    expect(
+      (await db.query("select * from public.media_assets")).rows,
+    ).toHaveLength(0);
+  });
+  it("denies client and aal1 admin uploads, permits aal2 admin, and supports cleanup", async () => {
+    for (const user of [one, admin]) {
+      await role("authenticated", user);
+      await db.exec(
+        `set request.jwt.claims = '{"sub":"${user}","role":"authenticated","aal":"aal1"}'`,
+      );
+      await expect(
+        db.exec(
+          "insert into storage.objects(bucket_id,name) values('micmu-images','supabase/approved/blocked')",
+        ),
+      ).rejects.toThrow(/row-level security/);
+    }
+    await role("authenticated", admin);
+    await db.exec(
+      "insert into storage.objects(bucket_id,name) values('micmu-images','supabase/approved/cleanup')",
+    );
+    expect(
+      (
+        await db.query(
+          "delete from storage.objects where name='supabase/approved/cleanup' returning name",
+        )
+      ).rows,
+    ).toHaveLength(1);
+  });
+  it("storage setup can be safely rerun", async () => {
+    await db.exec("reset role");
+    await db.exec(
+      readFileSync(
+        "supabase/migrations/202610280001_supabase_images.sql",
+        "utf8",
+      ),
+    );
+    expect(
+      (
+        await db.query(
+          "select public,file_size_limit from storage.buckets where id='micmu-images'",
+        )
+      ).rows,
+    ).toEqual([{ public: false, file_size_limit: 5242880 }]);
   });
 });

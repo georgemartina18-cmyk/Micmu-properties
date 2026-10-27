@@ -28,7 +28,7 @@ The uploaded client PDF has been reviewed. The owner confirmed retaining the exi
 - Responsive editorial homepage, accessible mobile navigation, property listing/detail pages, shareable filters, and honest loading/error/empty states.
 - About, confirmed businesses, estates, developments, articles, FAQs, contact, partnerships, realtor application, inspections and reference checks.
 - Supabase email/password account flows, confirmation/recovery handling, profile editing, saved properties, own inspection/support history, private documents, payment records and realtor records.
-- Server-checked administrator area: property editor, draft/published content, company settings, incoming request management, realtor approval, R2 image uploads and audit log.
+- Server-checked administrator area: property editor, draft/published content, company settings, incoming request management, realtor approval, Supabase image uploads and audit log.
 - PostgreSQL migrations, row-level security, server-only enquiry submission, idempotency, email-based submission limits and audit triggers.
 - Lite Mode preference, reduced motion, no autoplay, no third-party fonts or trackers, no automatic maps, and a narrowly scoped production offline fallback.
 - Cloudflare Workers/OpenNext build configuration, pre-launch noindex, security headers and environment template.
@@ -61,3 +61,10 @@ Unit/integration tests use PGlite (actual PostgreSQL in WASM) with a minimal Aut
 - [Implementation status and remaining roadmap](docs/STATUS.md)
 
 Never put passwords or API secrets in chat, commits, screenshots or documentation. Configure secret values through the hosting provider's secure settings.
+
+### Image storage
+
+New approved image uploads use the existing Supabase project, not Cloudflare R2.
+Apply `supabase/migrations/202610280001_supabase_images.sql` in the MICMU SQL Editor before testing uploads. It creates a private `micmu-images` bucket with a 5 MB JPEG/PNG/WebP limit. Only MFA-verified administrators can write; approved images can be read publicly through the existing media URLs. Ownership evidence remains private. No additional environment keys are required. Older R2 object keys remain readable if their original binding is present.
+
+Storage and downloads count toward the existing Supabase plan's limits; this does not activate a new subscription. Live upload testing is required after the migration and Cloudflare deployment.
