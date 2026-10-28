@@ -1684,3 +1684,52 @@ th {
     width: 150px;
   }
 }
+
+.rendering-gallery {
+  padding-top: 20px;
+}
+.rendering-note {
+  max-width: 800px;
+  color: var(--muted);
+  margin-bottom: 32px;
+}
+.rendering-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+.rendering-grid figure {
+  margin: 0;
+  min-width: 0;
+}
+.rendering-grid figure:first-child {
+  grid-column: 1 / -1;
+}
+.rendering-grid a {
+  display: block;
+  overflow: hidden;
+  background: #e8e9e1;
+}
+.rendering-grid img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.rendering-grid figcaption {
+  padding: 18px 0;
+}
+.rendering-grid h3 {
+  font-family: var(--serif);
+  font-size: 28px;
+  margin: 0 0 6px;
+}
+.rendering-grid figcaption span {
+  color: var(--muted);
+  font-size: 12px;
+}
+@media (max-width: 700px) {
+  .rendering-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}

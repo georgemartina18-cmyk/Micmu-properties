@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RenderingGallery } from "@/components/rendering-gallery";
 import {
   ArrowUpRight,
   ArrowRight,
@@ -140,6 +141,7 @@ export default async function Home() {
           </Link>
         </div>
       </section>
+      <RenderingGallery />
       <section className="section properties-section">
         <div className="shell">
           <div className="section-heading">
