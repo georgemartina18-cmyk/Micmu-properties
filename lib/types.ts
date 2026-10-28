@@ -33,6 +33,8 @@ export type Property = {
   demo?: boolean;
 };
 export type Content = {
+  image_url?: string;
+  sort_order?: number;
   id: string;
   slug: string;
   title: string;

@@ -1733,3 +1733,9 @@ th {
     gap: 24px;
   }
 }
+
+.referral-link {
+  display: block;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}

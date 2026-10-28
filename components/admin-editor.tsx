@@ -268,7 +268,13 @@ export function PropertyEditor({ property }: { property?: Property }) {
     </form>
   );
 }
-export function ContentEditor({ item }: { item?: Content }) {
+export function ContentEditor({
+  item,
+  defaultKind = "article",
+}: {
+  item?: Content;
+  defaultKind?: string;
+}) {
   const [message, setMessage] = useState("");
   return (
     <form
@@ -298,7 +304,7 @@ export function ContentEditor({ item }: { item?: Content }) {
       <div className="form-grid">
         <label className="field">
           Content type
-          <select name="kind" defaultValue={item?.kind || "article"}>
+          <select name="kind" defaultValue={item?.kind || defaultKind}>
             {[
               "article",
               "estate",
@@ -338,6 +344,24 @@ export function ContentEditor({ item }: { item?: Content }) {
             required
             defaultValue={item?.summary}
             maxLength={600}
+          />
+        </label>
+        <label className="field">
+          Approved team photograph path (optional)
+          <input
+            name="image_url"
+            defaultValue={item?.image_url}
+            placeholder="/api/media/asset-id"
+          />
+        </label>
+        <label className="field">
+          Display order (lowest first)
+          <input
+            name="sort_order"
+            type="number"
+            min="0"
+            max="10000"
+            defaultValue={item?.sort_order || 0}
           />
         </label>
         <label className="field span-full">

@@ -1,3 +1,4 @@
+import { RealtorRecords } from "@/components/realtor-records";
 import { NotificationList } from "@/components/notifications";
 import { SavedSearchList } from "@/components/saved-searches";
 import { RecentlyViewedList } from "@/components/recently-viewed";
@@ -48,7 +49,6 @@ export default async function Dashboard({
     .select("role")
     .eq("user_id", user.id);
   const isAdmin = roles?.some((r) => r.role === "admin");
-  const realtor = roles?.some((r) => r.role === "realtor");
   return (
     <>
       <PageIntro
@@ -70,7 +70,7 @@ export default async function Dashboard({
             ["profile", "Profile"],
             ["security", "Account security"],
             ["support", "Support"],
-            ...(realtor ? [["realtor", "Realtor portal"]] : []),
+            ["realtor", "Realtor registration & portal"],
           ].map(([key, label]) => (
             <Link
               key={key}
@@ -177,8 +177,8 @@ export default async function Dashboard({
               )}
             />
           </>
-        ) : realtor ? (
-          <Realtor userId={user.id} />
+        ) : tab === "realtor" ? (
+          <RealtorRecords db={db} userId={user.id} />
         ) : (
           <EmptyState title="Realtor access requires approval">
             Apply through the realtor application form. Only administrators can
@@ -339,48 +339,5 @@ async function Payments({ userId }: { userId: string }) {
       Administrator-approved records will appear here. No payments are collected
       through this website.
     </EmptyState>
-  );
-}
-async function Realtor({ userId }: { userId: string }) {
-  const { db } = await requireUser();
-  const [referrals, commissions] = await Promise.all([
-    db.from("referrals").select("id,reference,status").eq("realtor_id", userId),
-    db
-      .from("commissions")
-      .select("id,reference,amount,status")
-      .eq("realtor_id", userId),
-  ]);
-  if (referrals.error || commissions.error)
-    throw new Error("Realtor records are temporarily unavailable.");
-  return (
-    <div className="two-column">
-      <div>
-        <h2>My referrals</h2>
-        {referrals.data?.length ? (
-          referrals.data.map((r) => (
-            <div className="record" key={r.id}>
-              {r.reference} · {r.status}
-            </div>
-          ))
-        ) : (
-          <p>No referrals recorded.</p>
-        )}
-      </div>
-      <div>
-        <h2>Commission records</h2>
-        {commissions.data?.length ? (
-          commissions.data.map((r) => (
-            <div className="record" key={r.id}>
-              {r.reference} · {money(r.amount)} · {r.status}
-            </div>
-          ))
-        ) : (
-          <p>
-            No commissions recorded. Only administrators can create or change
-            commission records.
-          </p>
-        )}
-      </div>
-    </div>
   );
 }

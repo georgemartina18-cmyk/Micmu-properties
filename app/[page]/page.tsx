@@ -1,3 +1,4 @@
+import { PublicRealtorRegistration } from "@/components/realtor-controls";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { PageIntro, EmptyState, ContactBand } from "@/components/ui";
@@ -47,7 +48,9 @@ export default async function PublicPage({
     <>
       <PageIntro {...def} />
       <section className="shell content-section">
-        {formKind ? (
+        {page === "become-a-realtor" ? (
+          <PublicRealtorRegistration />
+        ) : formKind ? (
           <div className="two-column">
             <EnquiryForm
               kind={formKind}
@@ -339,15 +342,29 @@ async function Collection({ kind, page }: { kind: string; page: string }) {
 async function ApprovedTeam() {
   const team = await content("team");
   return team.length ? (
-    <section aria-label="Approved team profiles">
+    <section id="team" aria-label="Approved team profiles">
       <h3>Meet the team</h3>
-      {team.map((person) => (
-        <div className="record" key={person.id}>
-          <h3>{person.title}</h3>
-          <p>{person.summary}</p>
-          <p>{person.body}</p>
-        </div>
-      ))}
+      {team
+        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))
+        .map((person) => (
+          <div className="record" key={person.id}>
+            {person.image_url && (
+              // Approved, same-origin static media; no remote transformation service.
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={person.image_url}
+                alt={person.title}
+                width={240}
+                height={280}
+                loading="lazy"
+                style={{ objectFit: "cover", maxWidth: "100%" }}
+              />
+            )}
+            <h3>{person.title}</h3>
+            <p>{person.summary}</p>
+            <p>{person.body}</p>
+          </div>
+        ))}
     </section>
   ) : null;
 }

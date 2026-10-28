@@ -89,6 +89,7 @@ export function Header() {
             ["Our businesses", "/businesses"],
             ["Contact", "/contact"],
             ["Client login", "/login"],
+            ["Payment plans", "/payment-plans"],
             ["Book inspection", "/book-inspection"],
           ].map(([label, url]) => (
             <Link key={url} href={url} onClick={() => setOpen(false)}>

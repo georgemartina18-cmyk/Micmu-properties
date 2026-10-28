@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RealtorAdmin } from "@/components/realtor-records";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { PageIntro, EmptyState } from "@/components/ui";
@@ -32,10 +33,13 @@ export default async function Admin({
       "overview",
       "properties",
       "content",
+      "team",
       "leads",
       "media",
       "settings",
       "audit",
+      "realtors",
+      "sales",
     ].includes(tab)
   )
     notFound();
@@ -53,10 +57,13 @@ export default async function Admin({
             ["overview", "Overview"],
             ["properties", "Properties"],
             ["content", "Content & services"],
+            ["team", "Team members"],
             ["leads", "Enquiries & inspections"],
             ["media", "Media library"],
             ["settings", "Company settings"],
             ["audit", "Audit log"],
+            ["realtors", "Realtor management"],
+            ["sales", "Sales & commissions"],
           ].map(([key, label]) => (
             <Link
               key={key}
@@ -68,7 +75,9 @@ export default async function Admin({
           ))}
           <Link href="/dashboard">My account ↗</Link>
         </nav>
-        {tab === "overview" ? (
+        {tab === "realtors" || tab === "sales" ? (
+          <RealtorAdmin db={db} tab={tab} />
+        ) : tab === "overview" ? (
           <>
             <div className="admin-stat-grid">
               {await Promise.all(
@@ -154,16 +163,18 @@ export default async function Admin({
               </div>
             );
           })()
-        ) : tab === "content" ? (
+        ) : tab === "content" || tab === "team" ? (
           await (async () => {
-            const { data, error } = await db
-              .from("content")
-              .select("*")
-              .order("created_at", { ascending: false });
+            let query = db.from("content").select("*");
+            if (tab === "team") query = query.eq("kind", "team");
+            const { data, error } = await query.order("created_at", {
+              ascending: false,
+            });
             if (error) throw new Error("Content could not be loaded.");
             return (
               <div className="stack">
                 <ContentEditor
+                  defaultKind={tab === "team" ? "team" : "article"}
                   key={q.edit || "new"}
                   item={
                     data?.find((c) => c.id === q.edit) as Content | undefined
@@ -177,7 +188,7 @@ export default async function Admin({
                     <h3>{c.title}</h3>
                     <Link
                       className="text-link"
-                      href={`/admin/content?edit=${c.id}`}
+                      href={`/admin/${tab}?edit=${c.id}`}
                     >
                       Edit content ↗
                     </Link>

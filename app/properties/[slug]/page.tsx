@@ -1,3 +1,4 @@
+import { PlanCalculator } from "@/components/realtor-controls";
 import { PropertyGallery } from "@/components/property-gallery";
 import { RecentlyViewed } from "@/components/recently-viewed";
 import { pricePeriod } from "@/lib/property-search";
@@ -59,6 +60,16 @@ export default async function PropertyPage({
           <article className="prose">
             <h2>Space for possibility.</h2>
             <p>{p.description}</p>
+            {p.purpose === "For sale" &&
+              !p.demo &&
+              (p.price ? (
+                <PlanCalculator basePrice={p.price} />
+              ) : (
+                <p>
+                  <Link href="/payment-plans">Compare payment plans</Link> ·
+                  Contact MICMU for the base price.
+                </p>
+              ))}
             <div className="detail-stats">
               <span>
                 PROPERTY TYPE<strong>{p.category}</strong>

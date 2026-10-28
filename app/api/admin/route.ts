@@ -93,6 +93,23 @@ export async function POST(req: NextRequest) {
           );
       }
     }
+    if (
+      body.action === "content" &&
+      "image_url" in parsed.data &&
+      parsed.data.image_url
+    ) {
+      const { data: asset } = await db
+        .from("media_assets")
+        .select("id")
+        .eq("id", parsed.data.image_url.split("/").pop())
+        .eq("approved", true)
+        .maybeSingle();
+      if (!asset)
+        return NextResponse.json(
+          { error: "Choose an approved Media Library image." },
+          { status: 400 },
+        );
+    }
     const table = body.action === "property" ? "properties" : "content";
     ({ error } = id
       ? await db.from(table).update(parsed.data).eq("id", id)

@@ -84,6 +84,7 @@ export default async function RootLayout({
               <div>
                 <span className="footer-label">COMPANY</span>
                 <Link href="/about">About MICMU</Link>
+                <Link href="/about#team">Our team</Link>
                 <Link href="/businesses">Our businesses</Link>
                 <Link href="/partnerships">Partnerships</Link>
                 <Link href="/careers">Careers</Link>
@@ -100,6 +101,7 @@ export default async function RootLayout({
                 <Link href="/login">Client login</Link>
                 <Link href="/become-a-realtor">Become a realtor</Link>
                 <Link href="/contact">Contact</Link>
+                <Link href="/payment-plans">Payment plans</Link>
                 {info.email && (
                   <a href={`mailto:${info.email}`}>{info.email}</a>
                 )}

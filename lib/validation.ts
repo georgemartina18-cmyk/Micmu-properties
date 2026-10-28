@@ -168,6 +168,11 @@ export const propertySchema = z
       issue("latitude", "Provide both map coordinates or leave both blank.");
   });
 export const contentSchema = z.object({
+  image_url: z
+    .string()
+    .regex(/^$|^\/api\/media\/[0-9a-f-]{36}$/)
+    .default(""),
+  sort_order: z.coerce.number().int().min(0).max(10000).default(0),
   kind: z.enum([
     "article",
     "estate",

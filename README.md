@@ -68,3 +68,12 @@ New approved image uploads use the existing Supabase project, not Cloudflare R2.
 Apply `supabase/migrations/202610280001_supabase_images.sql` in the MICMU SQL Editor before testing uploads. It creates a private `micmu-images` bucket with a 5 MB JPEG/PNG/WebP limit. Only MFA-verified administrators can write; approved images can be read publicly through the existing media URLs. Ownership evidence remains private. No additional environment keys are required. Older R2 object keys remain readable if their original binding is present.
 
 Storage and downloads count toward the existing Supabase plan's limits; this does not activate a new subscription. Live upload testing is required after the migration and Cloudflare deployment.
+
+### Realtor, payment and team features
+
+See [activation and operating instructions](docs/REALTOR_PAYMENT_SETUP.md).
+Apply the additive `202610290001_realtor_sales_team.sql` migration before live use.
+This adds free, reviewed realtor applications; direct referral links and privacy;
+manual sales confirmation with three-generation commission calculation; instalment
+schedules and receipt tracking; separate payout approval; and team photographs/order.
+These features record payments and commissions, but do not transfer money.

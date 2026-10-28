@@ -28,6 +28,7 @@ beforeAll(async () => {
     "202610260004_dashboard_notifications.sql",
     "202610260005_approved_people_content.sql",
     "202610280001_supabase_images.sql",
+    "202610290001_realtor_sales_team.sql",
   ])
     await db.exec(readFileSync(`supabase/migrations/${file}`, "utf8"));
   await db.exec(
@@ -289,5 +290,207 @@ describe("Supabase image storage access", () => {
         )
       ).rows,
     ).toEqual([{ public: false, file_size_limit: 5242880 }]);
+  });
+});
+
+describe("Realtor referral and sales rules", () => {
+  const c = "66666666-6666-4666-8666-666666666666";
+  const outsider = "77777777-7777-4777-8777-777777777777";
+  let sale: string;
+  it("registers free applications with fixed sponsor chain and approval", async () => {
+    await db.exec(
+      `reset role;insert into auth.users(id,email,email_confirmed_at) values('${c}','c@example.test',now()),('${outsider}','out@example.test',now());`,
+    );
+    await role("authenticated", one);
+    await db.exec(
+      "select public.apply_realtor('Realtor A','07012345678',2,3,'')",
+    );
+    await role("authenticated", admin);
+    await db.exec(`select public.review_realtor('${one}','approved')`);
+    const acode = (
+      await db.query<{ referral_code: string }>(
+        `select referral_code from public.realtor_members where user_id='${one}'`,
+      )
+    ).rows[0].referral_code;
+    await role("authenticated", two);
+    await db.query(
+      "select public.apply_realtor('Realtor B','07012345678',1,2,$1)",
+      [acode],
+    );
+    await role("authenticated", admin);
+    await db.exec(`select public.review_realtor('${two}','approved')`);
+    const bcode = (
+      await db.query<{ referral_code: string }>(
+        `select referral_code from public.realtor_members where user_id='${two}'`,
+      )
+    ).rows[0].referral_code;
+    await role("authenticated", c);
+    await db.query(
+      "select public.apply_realtor('Realtor C','07012345678',0,0,$1)",
+      [bcode],
+    );
+    await expect(
+      db.exec("select public.apply_realtor('Duplicate','07012345678',0,0,'')"),
+    ).rejects.toThrow(/already submitted/);
+    await role("authenticated", admin);
+    await db.exec(`select public.review_realtor('${c}','approved')`);
+  });
+  it("exposes direct downlines only and blocks self-approval and writes", async () => {
+    await role("authenticated", one);
+    const rows = (
+      await db.query<{ user_id: string }>(
+        "select user_id from public.my_direct_downlines()",
+      )
+    ).rows.map((r) => r.user_id);
+    expect(rows).toContain(two);
+    expect(rows).not.toContain(c);
+    await expect(
+      db.exec(`select public.review_realtor('${c}','approved')`),
+    ).rejects.toThrow(/administrator/);
+    await expect(
+      db.exec(
+        `update public.realtor_members set referred_by='${c}' where user_id='${one}'`,
+      ),
+    ).rejects.toThrow();
+  });
+  it("calculates surcharges and instalments exactly, then allocates 10/3/2 including surcharge", async () => {
+    await role("authenticated", admin);
+    const prop = (
+      await db.query<{ id: string }>(
+        "select id from public.properties where reference='PUB'",
+      )
+    ).rows[0].id;
+    sale = (
+      await db.query<{ id: string }>(
+        `select public.create_realtor_sale('SALE-TEST','${prop}','${c}',6000000,6,false,1,'','2026-11-01') as id`,
+      )
+    ).rows[0].id;
+    expect(
+      (
+        await db.query<{ full_price: string }>(
+          `select full_price from public.realtor_sales where id='${sale}'`,
+        )
+      ).rows[0].full_price,
+    ).toBe("6300000.00");
+    const instalments = (
+      await db.query<{ amount: string }>(
+        `select amount from public.sale_instalments where sale_id='${sale}' order by sequence`,
+      )
+    ).rows.map((r) => Number(r.amount));
+    expect(instalments).toEqual([2520000, 1260000, 1260000, 1260000]);
+    await db.exec(`select public.confirm_realtor_sale('${sale}')`);
+    expect(
+      (
+        await db.query<{ realtor_id: string; amount: string }>(
+          `select realtor_id,amount from public.sale_commissions where sale_id='${sale}' order by generation`,
+        )
+      ).rows,
+    ).toEqual([
+      { realtor_id: c, amount: "630000.00" },
+      { realtor_id: two, amount: "189000.00" },
+      { realtor_id: one, amount: "126000.00" },
+    ]);
+    await expect(
+      db.exec(`select public.confirm_realtor_sale('${sale}')`),
+    ).rejects.toThrow(/already processed/);
+  });
+  it("keeps sales private and shows only a realtor's commission", async () => {
+    await role("authenticated", one);
+    expect(
+      (await db.query("select * from public.realtor_sales")).rows,
+    ).toHaveLength(0);
+    expect(
+      (await db.query("select * from public.sale_commissions")).rows,
+    ).toHaveLength(1);
+    await role("authenticated", outsider);
+    expect(
+      (await db.query("select * from public.sale_commissions")).rows,
+    ).toHaveLength(0);
+    expect(
+      (await db.query("select * from public.sale_receipts")).rows,
+    ).toHaveLength(0);
+  });
+  it("records payments once, prevents overpayment, and requires payout approval", async () => {
+    await role("authenticated", admin);
+    await db.exec(
+      `select public.record_sale_receipt('${sale}','RCPT-TEST',2520000,'2026-01-01')`,
+    );
+    await expect(
+      db.exec(
+        `select public.record_sale_receipt('${sale}','RCPT-TEST',1,'2026-01-01')`,
+      ),
+    ).rejects.toThrow();
+    await expect(
+      db.exec(
+        `select public.record_sale_receipt('${sale}','OVER',6300000,'2026-01-01')`,
+      ),
+    ).rejects.toThrow(/Invalid payment/);
+    await expect(
+      db.exec(`select public.set_sale_commission_status('${sale}',0,'paid')`),
+    ).rejects.toThrow(/transition/);
+    await db.exec(
+      `select public.set_sale_commission_status('${sale}',0,'approved');select public.set_sale_commission_status('${sale}',0,'paid');`,
+    );
+  });
+  it("permits correcting draft dates, cancels only unpaid sales and audits the changes", async () => {
+    await role("authenticated", admin);
+    const prop = (
+      await db.query<{ id: string }>(
+        "select id from public.properties where reference='PUB'",
+      )
+    ).rows[0].id;
+    const draft = (
+      await db.query<{ id: string }>(
+        `select public.create_realtor_sale('CANCEL','${prop}','${c}',6000000,3,false,1,'','2026-11-01') as id`,
+      )
+    ).rows[0].id;
+    const instalment = (
+      await db.query<{ id: string }>(
+        `select id from public.sale_instalments where sale_id='${draft}' and sequence=3`,
+      )
+    ).rows[0].id;
+    await db.exec(
+      `select public.set_instalment_date('${instalment}','2027-01-30')`,
+    );
+    await db.exec(`select public.cancel_realtor_sale('${draft}')`);
+    await expect(
+      db.exec(`select public.confirm_realtor_sale('${draft}')`),
+    ).rejects.toThrow();
+    await expect(
+      db.exec(`select public.cancel_realtor_sale('${sale}')`),
+    ).rejects.toThrow(/Payments exist/);
+    expect(
+      (
+        await db.query(
+          `select id from public.audit_logs where table_name='realtor_sales' and record_id='${draft}'`,
+        )
+      ).rows.length,
+    ).toBeGreaterThan(1);
+  });
+  it("does not apply standard commissions to discounts", async () => {
+    await role("authenticated", admin);
+    const prop = (
+      await db.query<{ id: string }>(
+        "select id from public.properties where reference='PUB'",
+      )
+    ).rows[0].id;
+    const discount = (
+      await db.query<{ id: string }>(
+        `select public.create_realtor_sale('DISCOUNT','${prop}','${c}',6000000,3,true,5500000,'Agreed special rates in signed agreement','2026-11-01') as id`,
+      )
+    ).rows[0].id;
+    await expect(
+      db.exec(`select public.confirm_realtor_sale('${discount}')`),
+    ).rejects.toThrow(/agreed rates/);
+    await db.exec(
+      `select public.confirm_realtor_sale('${discount}','[8,2,1]')`,
+    );
+    expect(
+      (
+        await db.query<{ amount: string }>(
+          `select amount from public.sale_commissions where sale_id='${discount}' order by generation`,
+        )
+      ).rows.map((r) => Number(r.amount)),
+    ).toEqual([440000, 110000, 55000]);
   });
 });
