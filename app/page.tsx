@@ -31,7 +31,7 @@ export default async function Home() {
         <div
           className="hero-visual"
           role="img"
-          aria-label="Original architectural concept illustration; not a MICMU development"
+          aria-label="AI-enhanced apartment architectural rendering supplied by MICMU; not a completed-property photograph"
         />
         <div className="hero-shade" />
         <div className="shell hero-content">
@@ -65,7 +65,7 @@ export default async function Home() {
           <a href="#discover">
             <MoveDown size={17} /> SCROLL TO DISCOVER
           </a>
-          <span>ARCHITECTURAL CONCEPT / ORIGINAL ILLUSTRATION</span>
+          <span>ARCHITECTURAL RENDERING / AI ENHANCED</span>
           <span>CONCEPT / 01</span>
         </div>
       </section>

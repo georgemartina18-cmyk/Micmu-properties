@@ -227,7 +227,7 @@ summary:focus-visible {
 .hero-visual {
   position: absolute;
   inset: 0;
-  background: url("/architecture.svg") center 47% / cover;
+  background: url("/renderings/apartments-1280.webp") center 47% / cover;
 }
 .hero-shade {
   position: absolute;
