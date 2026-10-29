@@ -198,16 +198,15 @@ export function PlanCalculator({
           <ul>
             {result.payments.map((p, i) => (
               <li key={i}>
-                {p.month === 0 ? "Initial payment" : `Month ${p.month}`}:{" "}
+                {p.month === 0 ? "Initial payment" : `By the end of month ${p.month}`}:{" "}
                 {p.percentage}% — {money(p.amount)}
               </li>
             ))}
           </ul>
           <p className="form-note">
-            Month 3 is shown provisionally; confirm the exact deadline described
-            as “before the third month” with MICMU. Your signed payment
-            agreement controls the due dates. This calculator does not collect
-            payments.
+            For the 3-month and 6-month plans, the month 3 instalment is due
+            by the end of the third month. Your signed payment agreement controls
+            the exact due dates. This calculator does not collect payments.
           </p>
         </>
       ) : (

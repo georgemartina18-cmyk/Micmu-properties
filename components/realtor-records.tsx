@@ -201,8 +201,9 @@ export async function RealtorAdmin({
         properties={props || []}
       />
       <p className="notice">
-        Month 3 deadlines are provisional pending MICMU’s clarification. Verify
-        all due dates with the buyer before confirming a sale. Missing referrer
+        For the 3-month and 6-month plans, the month 3 instalment is due by the
+        end of the third month. Verify all due dates with the buyer before
+        confirming a sale. Missing referrer
         generations receive no automatic allocation. Discounted sales use only
         the agreed rates.
       </p>
