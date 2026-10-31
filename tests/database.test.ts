@@ -13,7 +13,7 @@ async function role(name: string, sub = one) {
 beforeAll(async () => {
   db = new PGlite();
   await db.exec(
-    `create role anon;create role authenticated;create role service_role bypassrls;create schema auth;create schema storage;create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz);create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'sub' $$;`.replace(
+    `create role anon;create role authenticated;create role service_role bypassrls;create schema auth;create schema storage;create table auth.users(id uuid primary key,email text,email_confirmed_at timestamptz,banned_until timestamptz,deleted_at timestamptz);create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'sub' $$;`.replace(
       "select nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'sub'",
       "select (nullif(current_setting('request.jwt.claims',true),'')::jsonb->>'sub')::uuid",
     ),
@@ -33,6 +33,10 @@ beforeAll(async () => {
     await db.exec(readFileSync(`supabase/migrations/${file}`, "utf8"));
   await db.exec(
     `grant select,insert,update,delete on public.profiles,public.user_roles,public.properties,public.content,public.site_settings,public.enquiries,public.saved_properties,public.client_documents,public.payment_records,public.referrals,public.commissions,public.verification_records,public.media_assets,public.audit_logs to anon,authenticated;grant select,insert,update,delete on all tables in schema public to service_role;grant usage on all sequences in schema public to anon,authenticated,service_role;grant select on storage.objects to authenticated;insert into auth.users(id,email,email_confirmed_at) values('${one}','one@example.test',now()),('${two}','two@example.test',now()),('${admin}','admin@example.test',now());insert into public.user_roles values('${admin}','admin');insert into public.properties(slug,reference,name,location,category,size,description,published,review_status) values('public','PUB','Public','Test','Land','100 m²','Test',true,'Approved'),('draft','DRAFT','Draft','Test','Land','100 m²','Test',false,'Pending');insert into public.profiles(id,full_name) values('${one}','One'),('${two}','Two');insert into public.payment_records(user_id,reference,amount,status) values('${one}','ONE',100,'received'),('${two}','TWO',200,'received');`,
+  );
+  // Apply the new migration to populated tables with existing Supabase-style grants.
+  await db.exec(
+    readFileSync("supabase/migrations/202610310001_staff_access.sql", "utf8"),
   );
 });
 afterAll(async () => {
@@ -57,7 +61,7 @@ describe("PostgreSQL migrations and access rules", () => {
     await role("authenticated");
     await expect(
       db.exec(`insert into public.user_roles values('${one}','admin')`),
-    ).rejects.toThrow(/row-level security/);
+    ).rejects.toThrow(/permission denied|row-level security/);
     expect(
       (
         await db.query(
@@ -492,5 +496,289 @@ describe("Realtor referral and sales rules", () => {
         )
       ).rows.map((r) => Number(r.amount)),
     ).toEqual([440000, 110000, 55000]);
+  });
+});
+
+describe("Owner-only staff access", () => {
+  const owner = "88888888-8888-4888-8888-888888888888";
+  const unconfirmed = "99999999-9999-4999-8999-999999999999";
+  async function ownerSession(aal = "aal2") {
+    await role("authenticated", owner);
+    await db.exec(
+      `set request.jwt.claims = '{"sub":"${owner}","role":"authenticated","aal":"${aal}"}'`,
+    );
+  }
+  it("does not assign an owner during migration; ordinary administrators cannot bootstrap", async () => {
+    await db.exec("reset role");
+    expect((await db.query("select * from company_owner")).rows).toHaveLength(
+      0,
+    );
+    await role("authenticated", admin);
+    await expect(
+      db.exec(`insert into company_owner(user_id) values('${admin}')`),
+    ).rejects.toThrow(/permission denied/);
+    await expect(
+      db.exec(`select set_staff_administrator('${admin}',true)`),
+    ).rejects.toThrow(/company owner/);
+    await db.exec(
+      `reset role;insert into auth.users(id,email,email_confirmed_at) values('${owner}','owner@example.test',now()),('${unconfirmed}','unconfirmed@example.test',null)`,
+    );
+    await expect(
+      db.exec(`insert into company_owner(user_id) values('${unconfirmed}')`),
+    ).rejects.toThrow(/confirmed/);
+    await db.exec(`insert into company_owner(user_id) values('${owner}')`);
+    expect(
+      (
+        await db.query(
+          `select * from user_roles where user_id='${owner}' and role='admin'`,
+        )
+      ).rows,
+    ).toHaveLength(1);
+  });
+  it("denies anonymous users, realtors, ordinary admins, and service credentials", async () => {
+    for (const user of [one, admin]) {
+      await role("authenticated", user);
+      for (const query of [
+        "select list_staff_access()",
+        "select find_staff_account('two@example.test')",
+        `select set_staff_administrator('${user}',true)`,
+      ])
+        await expect(db.exec(query)).rejects.toThrow(/company owner/);
+      await expect(
+        db.exec(`insert into user_roles values('${user}','admin')`),
+      ).rejects.toThrow(/permission denied/);
+      await expect(
+        db.exec(`insert into company_owner(user_id) values('${user}')`),
+      ).rejects.toThrow(/permission denied/);
+    }
+    for (const name of ["anon", "service_role"]) {
+      await role(name);
+      await expect(
+        db.exec(`select set_staff_administrator('${one}',true)`),
+      ).rejects.toThrow(/permission denied/);
+      await expect(
+        db.exec(`insert into user_roles values('${one}','admin')`),
+      ).rejects.toThrow(/permission denied/);
+    }
+  });
+  it("denies the owner at AAL1 including directory reads", async () => {
+    await ownerSession("aal1");
+    expect(
+      (await db.query<{ value: boolean }>("select is_company_owner() as value"))
+        .rows[0].value,
+    ).toBe(false);
+    await expect(
+      db.exec(`select set_staff_administrator('${two}',true)`),
+    ).rejects.toThrow(/company owner/);
+    await expect(db.exec("select list_staff_access()")).rejects.toThrow(
+      /company owner/,
+    );
+  });
+  it("looks up only confirmed eligible accounts by exact email", async () => {
+    await ownerSession();
+    expect(
+      (await db.query("select * from find_staff_account(' TWO@example.test ')"))
+        .rows,
+    ).toEqual([
+      {
+        user_id: two,
+        email: "two@example.test",
+        full_name: "Two",
+        is_administrator: false,
+        is_owner: false,
+      },
+    ]);
+    for (const email of [
+      "unconfirmed@example.test",
+      "%@example.test",
+      "missing@example.test",
+    ])
+      expect(
+        (await db.query("select * from find_staff_account($1)", [email])).rows,
+      ).toHaveLength(0);
+    await expect(
+      db.exec(`select set_staff_administrator('${unconfirmed}',true)`),
+    ).rejects.toThrow(/confirmed/);
+    await expect(
+      db.exec(`select set_staff_administrator('${crypto.randomUUID()}',true)`),
+    ).rejects.toThrow(/confirmed/);
+  });
+  it("grants/revokes only admin, audits actor and target, and deduplicates retries", async () => {
+    await ownerSession();
+    await db.exec(
+      `select set_staff_administrator('${two}',true);select set_staff_administrator('${two}',true)`,
+    );
+    expect(
+      (
+        await db.query(
+          `select * from user_roles where user_id='${two}' and role='admin'`,
+        )
+      ).rows,
+    ).toHaveLength(1);
+    expect(
+      (
+        await db.query(
+          `select action,actor_id,target_id from staff_access_events where target_id='${two}'`,
+        )
+      ).rows,
+    ).toEqual([{ action: "admin_granted", actor_id: owner, target_id: two }]);
+    await role("authenticated", two);
+    await db.exec(
+      `set request.jwt.claims = '{"sub":"${two}","role":"authenticated","aal":"aal2"}'`,
+    );
+    expect(
+      (await db.query<{ allowed: boolean }>("select is_admin() as allowed"))
+        .rows[0].allowed,
+    ).toBe(true);
+    await expect(
+      db.exec(`select set_staff_administrator('${two}',true)`),
+    ).rejects.toThrow(/company owner/);
+    await ownerSession();
+    await db.exec(
+      `select set_staff_administrator('${two}',false);select set_staff_administrator('${two}',false)`,
+    );
+    expect(
+      (await db.query(`select role from user_roles where user_id='${two}'`))
+        .rows,
+    ).toContainEqual({ role: "realtor" });
+    expect(
+      (
+        await db.query(
+          `select * from staff_access_events where target_id='${two}'`,
+        )
+      ).rows,
+    ).toHaveLength(2);
+    expect(
+      (
+        await db.query(
+          `select * from audit_logs where table_name='user_roles' and record_id='${two}' and actor_id='${owner}'`,
+        )
+      ).rows,
+    ).toHaveLength(2);
+    await role("authenticated", two);
+    await db.exec(
+      `set request.jwt.claims = '{"sub":"${two}","role":"authenticated","aal":"aal2"}'`,
+    );
+    expect(
+      (await db.query<{ allowed: boolean }>("select is_admin() as allowed"))
+        .rows[0].allowed,
+    ).toBe(false);
+  });
+  it("protects the last owner, admin role, auth account and singleton even from maintenance mistakes", async () => {
+    await ownerSession();
+    await expect(
+      db.exec(`select set_staff_administrator('${owner}',false)`),
+    ).rejects.toThrow(/retain administrator/);
+    await db.exec("reset role");
+    for (const query of [
+      "delete from company_owner",
+      `update company_owner set user_id='${admin}'`,
+      "truncate company_owner",
+      `delete from user_roles where user_id='${owner}' and role='admin'`,
+      `update user_roles set role='client' where user_id='${owner}' and role='admin'`,
+      "truncate user_roles",
+    ])
+      await expect(db.exec(query)).rejects.toThrow(/company owner/);
+    await expect(
+      db.exec(`delete from auth.users where id='${owner}'`),
+    ).rejects.toThrow(/foreign key|company owner/);
+    await expect(
+      db.exec(`insert into company_owner(user_id) values('${admin}')`),
+    ).rejects.toThrow(/duplicate key/);
+  });
+  it("rejects disabled targets and never grants permissions via public team content", async () => {
+    await db.exec(
+      `reset role;update auth.users set banned_until=now()+interval '1 day' where id='${unconfirmed}';update auth.users set email_confirmed_at=now() where id='${unconfirmed}'`,
+    );
+    await ownerSession();
+    await expect(
+      db.exec(`select set_staff_administrator('${unconfirmed}',true)`),
+    ).rejects.toThrow(/confirmed/);
+    await db.exec(
+      `insert into content(kind,slug,title,summary,body,published) values('team','staff-test-profile','Public profile','Team member','Biography',true)`,
+    );
+    expect(
+      (
+        await db.query(
+          `select * from user_roles where user_id='${unconfirmed}'`,
+        )
+      ).rows,
+    ).toHaveLength(0);
+  });
+  it("keeps access history private and prevents editing or forging it", async () => {
+    await role("authenticated", admin);
+    expect(
+      (await db.query("select * from staff_access_events")).rows,
+    ).toHaveLength(0);
+    await expect(
+      db.exec(
+        `insert into staff_access_events(target_id,action) values('${one}','admin_granted')`,
+      ),
+    ).rejects.toThrow(/permission denied/);
+    await ownerSession();
+    expect(
+      (await db.query("select * from list_staff_access()")).rows,
+    ).toHaveLength(2);
+    await expect(db.exec("delete from staff_access_events")).rejects.toThrow(
+      /permission denied/,
+    );
+    await expect(
+      db.exec("update staff_access_events set action='admin_revoked'"),
+    ).rejects.toThrow(/permission denied/);
+  });
+});
+
+describe("Staff access rollback and setup", () => {
+  it("rolls back role changes if their audit event fails", async () => {
+    const owner = "88888888-8888-4888-8888-888888888888";
+    await db.exec(`reset role;
+      create function public.test_reject_staff_event() returns trigger language plpgsql as $$ begin raise exception 'audit unavailable'; end; $$;
+      create trigger test_reject_staff_event before insert on public.staff_access_events for each row execute function public.test_reject_staff_event();`);
+    try {
+      await role("authenticated", owner);
+      await db.exec(
+        `set request.jwt.claims = '{"sub":"${owner}","role":"authenticated","aal":"aal2"}'`,
+      );
+      await expect(
+        db.exec(`select set_staff_administrator('${two}',true)`),
+      ).rejects.toThrow(/audit unavailable/);
+      expect(
+        (
+          await db.query(
+            `select * from user_roles where user_id='${two}' and role='admin'`,
+          )
+        ).rows,
+      ).toHaveLength(0);
+      expect(
+        (
+          await db.query(
+            `select * from audit_logs where table_name='user_roles' and record_id='${two}' and actor_id='${owner}'`,
+          )
+        ).rows,
+      ).toHaveLength(2);
+    } finally {
+      await db.exec(
+        "reset role;drop trigger test_reject_staff_event on public.staff_access_events;drop function public.test_reject_staff_event()",
+      );
+    }
+  });
+  it("bootstrap requires an explicitly identified owner and refuses replacement", async () => {
+    await db.exec("reset role");
+    const bootstrap = readFileSync("docs/STAFF_OWNER_BOOTSTRAP.sql", "utf8");
+    await expect(db.exec(bootstrap)).rejects.toThrow(
+      /Identify the company owner/,
+    );
+    const forEmail = (email: string) =>
+      bootstrap.replace(
+        "owner_email text := 'REPLACE_WITH_CONFIRMED_COMPANY_OWNER_EMAIL'",
+        `owner_email text := '${email}'`,
+      );
+    await db.exec(forEmail("owner@example.test"));
+    await expect(db.exec(forEmail("admin@example.test"))).rejects.toThrow(
+      /different company owner/,
+    );
+    await expect(db.exec(forEmail("missing@example.test"))).rejects.toThrow(
+      /no rows/,
+    );
   });
 });

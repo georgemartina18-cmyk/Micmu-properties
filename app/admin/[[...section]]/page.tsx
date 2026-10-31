@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { RealtorAdmin } from "@/components/realtor-records";
-import { notFound } from "next/navigation";
+import { StaffAccess } from "@/components/staff-access";
+import { notFound, redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { PageIntro, EmptyState } from "@/components/ui";
 import {
@@ -40,9 +41,13 @@ export default async function Admin({
       "audit",
       "realtors",
       "sales",
+      "staff",
     ].includes(tab)
   )
     notFound();
+  const { data: owner, error: ownerError } = await db.rpc("is_company_owner");
+  const isOwner = !ownerError && owner === true;
+  if (tab === "staff" && !isOwner) redirect("/admin");
   const q = await searchParams;
   return (
     <>
@@ -73,9 +78,30 @@ export default async function Admin({
               {label}
             </Link>
           ))}
+          {isOwner && (
+            <Link
+              href="/admin/staff"
+              aria-current={tab === "staff" ? "page" : undefined}
+            >
+              Staff access
+            </Link>
+          )}
           <Link href="/dashboard">My account ↗</Link>
         </nav>
-        {tab === "realtors" || tab === "sales" ? (
+        {tab === "staff" ? (
+          await (async () => {
+            const { data, error } = await db.rpc("list_staff_access");
+            if (error) throw new Error("Staff access could not be loaded.");
+            const { data: events, error: eventsError } = await db
+              .from("staff_access_events")
+              .select("id,actor_id,target_id,action,created_at")
+              .order("id", { ascending: false })
+              .limit(50);
+            if (eventsError)
+              throw new Error("Access history could not be loaded.");
+            return <StaffAccess staff={data ?? []} events={events ?? []} />;
+          })()
+        ) : tab === "realtors" || tab === "sales" ? (
           <RealtorAdmin db={db} tab={tab} />
         ) : tab === "overview" ? (
           <>
@@ -173,6 +199,12 @@ export default async function Admin({
             if (error) throw new Error("Content could not be loaded.");
             return (
               <div className="stack">
+                {tab === "team" && (
+                  <p className="notice">
+                    Team profiles are public company content. They do not create
+                    accounts or grant administrator access.
+                  </p>
+                )}
                 <ContentEditor
                   defaultKind={tab === "team" ? "team" : "article"}
                   key={q.edit || "new"}

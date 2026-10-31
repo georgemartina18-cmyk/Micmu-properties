@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { paymentPlan, type PlanMonths } from "@/lib/payment-plans";
@@ -72,16 +72,26 @@ export function OperationForm({
     </form>
   );
 }
+function subscribeReferral(callback: () => void) {
+  window.addEventListener("storage", callback);
+  return () => window.removeEventListener("storage", callback);
+}
+function storedReferral() {
+  try {
+    return localStorage.getItem("micmu-referral") || "";
+  } catch {
+    return "";
+  }
+}
 export function RealtorApplication() {
   const search = useSearchParams();
-  const [code, setCode] = useState(search.get("ref") || "");
-  useEffect(() => {
-    if (!search.get("ref")) {
-      try {
-        setCode(localStorage.getItem("micmu-referral") || "");
-      } catch {}
-    }
-  }, [search]);
+  const [editedCode, setCode] = useState<string | null>(null);
+  const savedCode = useSyncExternalStore(
+    subscribeReferral,
+    storedReferral,
+    () => "",
+  );
+  const code = editedCode ?? search.get("ref") ?? savedCode;
   return (
     <OperationForm action="apply">
       <h2>Free realtor registration</h2>
@@ -198,14 +208,16 @@ export function PlanCalculator({
           <ul>
             {result.payments.map((p, i) => (
               <li key={i}>
-                {p.month === 0 ? "Initial payment" : `By the end of month ${p.month}`}:{" "}
-                {p.percentage}% — {money(p.amount)}
+                {p.month === 0
+                  ? "Initial payment"
+                  : `By the end of month ${p.month}`}
+                : {p.percentage}% — {money(p.amount)}
               </li>
             ))}
           </ul>
           <p className="form-note">
-            For the 3-month and 6-month plans, the month 3 instalment is due
-            by the end of the third month. Your signed payment agreement controls
+            For the 3-month and 6-month plans, the month 3 instalment is due by
+            the end of the third month. Your signed payment agreement controls
             the exact due dates. This calculator does not collect payments.
           </p>
         </>

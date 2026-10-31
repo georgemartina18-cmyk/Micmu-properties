@@ -77,3 +77,7 @@ This adds free, reviewed realtor applications; direct referral links and privacy
 manual sales confirmation with three-generation commission calculation; instalment
 schedules and receipt tracking; separate payout approval; and team photographs/order.
 These features record payments and commissions, but do not transfer money.
+
+### Owner-only staff access
+
+The additive `202610310001_staff_access.sql` migration adds owner-only administrator access management at `/admin/staff`, with MFA, confirmed-account checks, database enforcement, immutable owner protection and access-change history. It assigns no owner automatically. Identify the company owner's confirmed login before running the separate bootstrap. See [staff access setup](docs/STAFF_ACCESS_SETUP.md) and [owner bootstrap template](docs/STAFF_OWNER_BOOTSTRAP.sql). Public team profiles remain separate from account permissions.

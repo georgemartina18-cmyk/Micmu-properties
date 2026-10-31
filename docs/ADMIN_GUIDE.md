@@ -57,3 +57,9 @@ Archive property removes a listing from public browsing and preserves its record
 Company settings now includes homepage headline and introduction text. Blank fields retain the design default. In Content & services, testimonial Title is the approved customer name, Summary the approved relationship and Body the authorised quote. Team profiles use name, role and biography. Obtain permission before publishing either. No sample testimonials/team profiles are seeded.
 
 Account dashboards now offer Saved searches, Recently viewed and Notifications. Recent history stays only on the visitor’s device and can be cleared there. Saved searches do not yet generate new-listing alerts. Dashboard notifications do not send email or WhatsApp messages.
+
+## Staff access (company owner only)
+
+After the staff-access migration and explicit owner setup, the MFA-verified company owner can use **Staff access** to look up an existing confirmed login by exact email, review its account ID and current permissions, then confirm a grant or revocation of administrator access. Ordinary administrators and realtors cannot manage these permissions. Revocation retains the account and other roles. The owner cannot be removed or demoted. Recent changes appear on Staff access and role changes appear in the existing Audit log.
+
+**Team members** manages public biographies and photographs only; it never creates logins or grants account permissions. See [staff access setup](STAFF_ACCESS_SETUP.md) for migration and owner activation steps.
