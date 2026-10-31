@@ -1,16 +1,21 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 export function AuthForm({
   configured,
   reset = false,
+  recover = false,
 }: {
   configured: boolean;
   reset?: boolean;
+  recover?: boolean;
 }) {
-  const [mode, setMode] = useState(reset ? "update" : "login");
+  const [mode, setMode] = useState(
+    reset ? "update" : recover ? "reset" : "login",
+  );
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const submitting = useRef(false);
   return (
     <div className="form-panel auth-panel">
       {!reset && (
@@ -51,6 +56,8 @@ export function AuthForm({
       <form
         onSubmit={async (e) => {
           e.preventDefault();
+          if (submitting.current) return;
+          submitting.current = true;
           setBusy(true);
           setMessage("");
           const form = e.currentTarget;
@@ -74,6 +81,7 @@ export function AuthForm({
                 : "Connection interrupted. Please retry.",
             );
           } finally {
+            submitting.current = false;
             setBusy(false);
           }
         }}

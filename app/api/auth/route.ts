@@ -44,9 +44,22 @@ export async function POST(req: NextRequest) {
         { error: "Email is required." },
         { status: 400 },
       );
-    await db.auth.resetPasswordForEmail(email, {
-      redirectTo: `${site}/auth/confirm`,
-    });
+    let resetError;
+    try {
+      ({ error: resetError } = await db.auth.resetPasswordForEmail(email, {
+        redirectTo: `${site.replace(/\/$/, "")}/auth/confirm?next=/reset-password`,
+      }));
+    } catch {
+      resetError = true;
+    }
+    if (resetError)
+      return NextResponse.json(
+        {
+          error:
+            "Reset email could not be requested. Please wait a moment and try again.",
+        },
+        { status: 503, headers: { "Cache-Control": "no-store" } },
+      );
     return NextResponse.json({
       message:
         "If an account exists, reset instructions will be sent to that address. Check your email.",

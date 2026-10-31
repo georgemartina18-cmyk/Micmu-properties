@@ -32,11 +32,11 @@ Set these values in `.env.local` for local development, or secure build/runtime 
 In Supabase Auth, enable email confirmation, configure your approved Site URL and allowed callback URLs, SMTP delivery and provider rate limits. Set password policy to at least 12 characters. Configure recovery and confirmation email templates to use the app confirmation handler, e.g.:
 
 ```
-{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery
-{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup
+{{ .SiteURL }}/auth/confirm#token_hash={{ .TokenHash }}&type=recovery
+{{ .SiteURL }}/auth/confirm#token_hash={{ .TokenHash }}&type=signup
 ```
 
-Test actual messages, expiration, replay and recovery end-to-end. The callback also handles PKCE codes, but the explicit recovery template is required to reach the password reset screen reliably. Enable TOTP MFA in Supabase. After signing in, use Account security to enroll and verify an authenticator. The application and database require aal2 for admin actions. Validate this on staging, including recovery when staff lose a device.
+The app displays a confirmation button and verifies only after an explicit same-origin POST. Do not link directly to `{{ .ConfirmationURL }}` in the reset template: that endpoint verifies before the app is reached. Use the complete [reset template](email-templates/reset-password.html), including its `#` fragment and `&amp;` HTML escaping, after deploying the callback. Disable email link tracking that rewrites authentication links. Test actual messages, expiration, replay and recovery end-to-end without recording their URLs or credentials. The callback also handles PKCE codes, retains `sb_flow_id` and routes recovery to `/reset-password`. See [recovery diagnosis](PASSWORD_RECOVERY.md). Enable TOTP MFA in Supabase. After signing in, use Account security to enroll and verify an authenticator. The application and database require aal2 for admin actions. Validate this on staging, including recovery when staff lose a device.
 
 Create the first administrator account normally and confirm its email. As database owner, find its exact user id in Supabase Authentication, then run:
 

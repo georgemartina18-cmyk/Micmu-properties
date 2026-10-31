@@ -5,7 +5,12 @@ export const metadata = {
   title: "Your account",
   robots: { index: false, follow: false },
 };
-export default function Login() {
+export default async function Login({
+  searchParams,
+}: {
+  searchParams: Promise<{ mode?: string }>;
+}) {
+  const { mode } = await searchParams;
   return (
     <>
       <PageIntro
@@ -14,7 +19,10 @@ export default function Login() {
         description="Manage your shortlist, inspection requests and approved documents in one secure place."
       />
       <section className="shell content-section">
-        <AuthForm configured={databaseConfigured()} />
+        <AuthForm
+          configured={databaseConfigured()}
+          recover={mode === "reset"}
+        />
       </section>
     </>
   );
