@@ -4,6 +4,7 @@ import { passwordUpdateFailure } from "../lib/password-update";
 const m = vi.hoisted(() => ({
   getUser: vi.fn(),
   updateUser: vi.fn(),
+  aal: vi.fn(),
   configured: true,
 }));
 vi.mock("../lib/supabase", () => ({
@@ -12,6 +13,7 @@ vi.mock("../lib/supabase", () => ({
       ? { auth: { getUser: m.getUser, updateUser: m.updateUser } }
       : null,
 }));
+vi.mock("../lib/assurance", () => ({ hasSecondFactor: m.aal }));
 import { POST } from "../app/api/auth/route";
 const sensitiveMarker = "synthetic-private-marker-never-expose";
 function req(
@@ -27,6 +29,7 @@ function req(
 beforeEach(() => {
   vi.clearAllMocks();
   m.configured = true;
+  m.aal.mockResolvedValue(false);
   m.getUser.mockResolvedValue({
     data: { user: { id: "synthetic" } },
     error: null,
@@ -119,4 +122,38 @@ it("still saves a valid new password once using the authenticated session", asyn
   expect(m.updateUser).toHaveBeenCalledExactlyOnceWith({
     password: "Synthetic-New-Password-123!",
   });
+});
+
+it("requires an enrolled authenticator before attempting a password update and accepts AAL2 afterwards", async () => {
+  m.getUser.mockResolvedValue({
+    data: {
+      user: {
+        id: "synthetic",
+        factors: [{ status: "verified", factor_type: "totp" }],
+      },
+    },
+    error: null,
+  });
+  const blocked = await POST(req());
+  expect(blocked.status).toBe(403);
+  expect(await blocked.json()).toMatchObject({
+    code: "insufficient_aal",
+    action: "verify_mfa",
+  });
+  expect(m.updateUser).not.toHaveBeenCalled();
+  m.aal.mockResolvedValue(true);
+  expect((await POST(req())).status).toBe(200);
+  expect(m.updateUser).toHaveBeenCalledTimes(1);
+});
+it("ignores user-editable metadata when determining MFA enrollment", async () => {
+  m.getUser.mockResolvedValue({
+    data: {
+      user: {
+        id: "synthetic",
+        user_metadata: { factors: [{ status: "verified" }] },
+      },
+    },
+  });
+  expect((await POST(req())).status).toBe(200);
+  expect(m.aal).not.toHaveBeenCalled();
 });

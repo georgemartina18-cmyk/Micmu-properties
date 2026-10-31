@@ -1,3 +1,4 @@
+import { hasSecondFactor } from "@/lib/assurance";
 import { passwordUpdateFailure } from "@/lib/password-update";
 import { sameOrigin } from "@/lib/request";
 import { NextRequest, NextResponse } from "next/server";
@@ -86,6 +87,20 @@ export async function POST(req: NextRequest) {
           },
           { status: 401, headers: { "Cache-Control": "no-store" } },
         );
+      // Recovery authenticates email but does not bypass an enrolled second factor.
+      // Read factor enrollment from the verified user, not editable metadata.
+      if (
+        user.factors?.some((factor) => factor.status === "verified") &&
+        !(await hasSecondFactor(db))
+      ) {
+        const { status, ...body } = passwordUpdateFailure({
+          code: "insufficient_aal",
+        });
+        return NextResponse.json(body, {
+          status,
+          headers: { "Cache-Control": "no-store" },
+        });
+      }
       const { error } = await db.auth.updateUser({ password });
       if (!error) return NextResponse.json({ redirect: "/dashboard" });
       const { status, ...body } = passwordUpdateFailure(error);

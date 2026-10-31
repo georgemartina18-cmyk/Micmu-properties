@@ -22,8 +22,10 @@ const user = {
   email: "synthetic@example.test",
 };
 const exp = () => Math.floor(Date.now() / 1000) + 3600;
+const encode = (value: unknown) =>
+  Buffer.from(JSON.stringify(value)).toString("base64url");
 const session = (aal = "aal1") => ({
-  access_token: `${btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }))}.${btoa(JSON.stringify({ sub: user.id, exp: exp(), aud: "authenticated", role: "authenticated", aal }))}.synthetic-not-a-real-signature`,
+  access_token: `${encode({ alg: "HS256", typ: "JWT" })}.${encode({ sub: user.id, exp: exp(), aud: "authenticated", role: "authenticated", aal })}.${Buffer.from("synthetic-signature").toString("base64url")}`,
   refresh_token: "synthetic-not-a-real-refresh-token",
   token_type: "bearer",
   expires_in: 3600,
@@ -188,7 +190,9 @@ it("retains the recovery session through an MFA challenge and saves with the upg
       if (path === "/auth/v1/user" && init?.method === "PUT") {
         const headers = new Headers(init.headers);
         const token = headers.get("Authorization")!.replace(/^Bearer /, "");
-        const claims = JSON.parse(atob(token.split(".")[1]));
+        const claims = JSON.parse(
+          Buffer.from(token.split(".")[1], "base64url").toString(),
+        );
         if (!steppedUp)
           return Response.json(
             { code: "insufficient_aal", message: "Synthetic MFA required" },
@@ -200,7 +204,11 @@ it("retains the recovery session through an MFA challenge and saves with the upg
         expect(claims.aal).toBe("aal2");
         return Response.json(user);
       }
-      if (path === "/auth/v1/user") return Response.json(user);
+      if (path === "/auth/v1/user")
+        return Response.json({
+          ...user,
+          factors: [{ id: factorId, status: "verified", factor_type: "totp" }],
+        });
       throw new Error("Unexpected synthetic provider request");
     }),
   );
