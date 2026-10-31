@@ -549,7 +549,7 @@ h1 em {
   position: relative;
   background:
     linear-gradient(0deg, #101d2cd9, transparent 65%),
-    url("/architecture.svg") 44% center/cover;
+    url("/renderings/apartments-1280.webp") center 47% / cover;
 }
 .art-caption {
   position: absolute;

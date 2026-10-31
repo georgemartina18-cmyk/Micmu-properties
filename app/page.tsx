@@ -241,7 +241,7 @@ export default async function Home() {
               <br />
               <em>possibility.</em>
             </strong>
-            <small>Original architectural concept</small>
+            <small>Architectural concept</small>
           </div>
         </div>
         <div className="approach-copy">
