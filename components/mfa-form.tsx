@@ -1,7 +1,15 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-export function MfaForm({ factorId }: { factorId?: string }) {
+import { useRouter } from "next/navigation";
+export function MfaForm({
+  factorId,
+  returnToReset = false,
+}: {
+  factorId?: string;
+  returnToReset?: boolean;
+}) {
+  const router = useRouter();
   const [factor, setFactor] = useState(factorId || "");
   const [qr, setQr] = useState("");
   const [message, setMessage] = useState("");
@@ -18,7 +26,15 @@ export function MfaForm({ factorId }: { factorId?: string }) {
   }
   return (
     <div className="form-panel auth-panel">
-      <h2>Protect your account.</h2>
+      <h2>
+        {returnToReset ? "Verify your authenticator." : "Protect your account."}
+      </h2>
+      {returnToReset && (
+        <p>
+          Use your existing authenticator to continue changing your password.
+          You will return to the password form after verification.
+        </p>
+      )}
       <p className="form-note">
         Administrator access requires a second factor. Use an authenticator app.
         Keep recovery access to your email and contact the authorised database
@@ -77,6 +93,10 @@ export function MfaForm({ factorId }: { factorId?: string }) {
               });
               setMessage(d.message);
               setQr("");
+              if (returnToReset) {
+                router.replace("/reset-password");
+                router.refresh();
+              }
             } catch (e) {
               setMessage(
                 e instanceof Error ? e.message : "Verification failed.",
@@ -109,8 +129,13 @@ export function MfaForm({ factorId }: { factorId?: string }) {
         </p>
       )}
       <div className="actions-row">
-        <Link href="/admin" className="text-link">
-          Continue to administration ↗
+        <Link
+          href={returnToReset ? "/reset-password" : "/admin"}
+          className="text-link"
+        >
+          {returnToReset
+            ? "Return to password reset ↗"
+            : "Continue to administration ↗"}
         </Link>
       </div>
     </div>

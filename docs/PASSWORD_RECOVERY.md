@@ -47,3 +47,7 @@ The environment has no Supabase management connection, so the template must be s
 - Desktop/mobile Playwright tests use synthetic credentials only. They cover GET/HEAD/reload/prefetch, explicit confirmation, duplicate-submit prevention, URL scrubbing, recovery routing and safe provider-error handling.
 
 References: [Supabase email-template variables, prefetching and tracking](https://supabase.com/docs/guides/auth/auth-email-templates), [password-based recovery](https://supabase.com/docs/guides/auth/passwords). The installed SDK source was inspected for SSR initialization and PKCE flow identifiers.
+
+## Password saving after a successful recovery link
+
+A successful link can still be followed by a rejected password change. Read the safe **Support code** on the password form rather than assuming the recovery token expired again. `same_password` and `weak_password` require correcting the password in the current session. `insufficient_aal` offers the existing authenticator challenge and returns to password reset afterwards. Reauthentication/service errors retain distinct safe codes for investigation. Unknown provider errors are never printed. See [follow-up validation](validation/password-save.md); the actual live rejection must still be identified from its safe code.

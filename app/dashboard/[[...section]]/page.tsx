@@ -20,8 +20,10 @@ export const metadata = {
 };
 export default async function Dashboard({
   params,
+  searchParams,
 }: {
   params: Promise<{ section?: string[] }>;
+  searchParams: Promise<{ next?: string }>;
 }) {
   const { db, user } = await requireUser();
   const { section = [] } = await params;
@@ -107,6 +109,7 @@ export default async function Dashboard({
           </div>
         ) : tab === "security" ? (
           <MfaForm
+            returnToReset={(await searchParams).next === "reset-password"}
             factorId={
               (await db.auth.mfa.listFactors()).data?.totp.find(
                 (f) => f.status === "verified",

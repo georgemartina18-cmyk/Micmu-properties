@@ -1,3 +1,4 @@
+import { passwordUpdateFailure } from "@/lib/password-update";
 import { sameOrigin } from "@/lib/request";
 import { NextRequest, NextResponse } from "next/server";
 import { database } from "@/lib/supabase";
@@ -66,21 +67,39 @@ export async function POST(req: NextRequest) {
     });
   }
   if (mode === "update") {
-    const {
-      data: { user },
-    } = await db.auth.getUser();
-    if (!user || !password)
+    if (!password)
       return NextResponse.json(
-        { error: "Use a valid recovery link and enter a new password." },
-        { status: 401 },
+        { error: "Enter a new password of at least 12 characters." },
+        { status: 400 },
       );
-    const { error } = await db.auth.updateUser({ password });
-    return error
-      ? NextResponse.json(
-          { error: "Password update failed. Request a new recovery link." },
-          { status: 400 },
-        )
-      : NextResponse.json({ redirect: "/dashboard" });
+    try {
+      const {
+        data: { user },
+        error: sessionError,
+      } = await db.auth.getUser();
+      if (sessionError || !user)
+        return NextResponse.json(
+          {
+            error:
+              "Your recovery session could not be verified. Request a fresh recovery email. Support code: session_not_found.",
+            code: "session_not_found",
+          },
+          { status: 401, headers: { "Cache-Control": "no-store" } },
+        );
+      const { error } = await db.auth.updateUser({ password });
+      if (!error) return NextResponse.json({ redirect: "/dashboard" });
+      const { status, ...body } = passwordUpdateFailure(error);
+      return NextResponse.json(body, {
+        status,
+        headers: { "Cache-Control": "no-store" },
+      });
+    } catch {
+      const { status, ...body } = passwordUpdateFailure(null);
+      return NextResponse.json(body, {
+        status,
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
   }
   if (!email || !password)
     return NextResponse.json(

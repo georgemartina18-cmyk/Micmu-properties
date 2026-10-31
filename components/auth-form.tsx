@@ -14,6 +14,7 @@ export function AuthForm({
     reset ? "update" : recover ? "reset" : "login",
   );
   const [message, setMessage] = useState("");
+  const [verifyMfa, setVerifyMfa] = useState(false);
   const [busy, setBusy] = useState(false);
   const submitting = useRef(false);
   return (
@@ -60,6 +61,7 @@ export function AuthForm({
           submitting.current = true;
           setBusy(true);
           setMessage("");
+          setVerifyMfa(false);
           const form = e.currentTarget;
           try {
             const r = await fetch("/api/auth", {
@@ -71,7 +73,10 @@ export function AuthForm({
               }),
             });
             const d = await r.json();
-            if (!r.ok) throw new Error(d.error);
+            if (!r.ok) {
+              setVerifyMfa(mode === "update" && d.action === "verify_mfa");
+              throw new Error(d.error);
+            }
             if (d.redirect) window.location.assign(d.redirect);
             else setMessage(d.message);
           } catch (e) {
@@ -126,6 +131,16 @@ export function AuthForm({
         {message && (
           <p className="notice" role="status">
             {message}
+          </p>
+        )}
+        {verifyMfa && (
+          <p>
+            <Link
+              className="text-link"
+              href="/dashboard/security?next=reset-password"
+            >
+              Verify authenticator to continue ↗
+            </Link>
           </p>
         )}
         <button className="button" disabled={busy || !configured}>
