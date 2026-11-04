@@ -1,4 +1,4 @@
-# Owner-only staff access
+# Staff access and owner-approved delegation
 
 Apply `supabase/migrations/202610310001_staff_access.sql` after the existing migrations, using the Supabase SQL Editor/database migration owner. The migration preserves existing roles and content and assigns nobody owner privileges. It adds no public account-directory endpoint.
 
@@ -6,14 +6,24 @@ Before activation, ask the company to identify the owner's existing confirmed lo
 
 The owner signs in, enrolls/verifies an authenticator at `/dashboard/security`, then opens **Administration → Staff access** (`/admin/staff`). Search by exact login email, verify the displayed account ID/email/current access, and confirm the grant or revocation. Only existing confirmed, active accounts qualify. Changes take effect on subsequent server/database authorization checks; revoked accounts keep their login and client/realtor roles. All administrators must pass the existing MFA checks before accessing administration.
 
-Public **Team members** entries remain content records. Publishing a biography or title never creates an account or changes permissions. Ordinary admins, clients and realtors cannot access staff lookup, enumerate the staff directory, assign owners, or grant/revoke administrator permissions, including direct PostgREST RPC calls. No service credential is used by the staff route; that credential is also denied direct role writes.
+Public **Team members** entries remain content records. Publishing a biography or title never creates an account or changes permissions. Administrators without delegated staff management, clients and realtors cannot access staff lookup, enumerate the staff directory, assign owners, or grant/revoke administrator permissions, including direct PostgREST RPC calls. No service credential is used by the staff route; that credential is also denied direct role writes.
 
 `company_owner` is an immutable singleton, not a new public-editable role string. Its foreign key and triggers prevent removing/replacing the last owner, deleting the owner's login, deleting/changing the owner's administrator role, or bypassing these protections with TRUNCATE. Owner transfer is deliberately outside the application feature and requires a separately reviewed database maintenance procedure. This feature does not add account deletion or suspension controls.
 
-Existing `audit_logs` continues to record role mutations (actor, action, table and target). `staff_access_events` adds explicit owner designation/grant/revoke events; duplicate retries do not create duplicate events. Its rows are read-only to the MFA-verified owner and have no client write policy. Existing audit history is not modified or deleted. The Staff access page shows the latest 50 events, and the existing admin Audit log also shows role mutations.
+Existing `audit_logs` continues to record role mutations (actor, action, table and target). `staff_access_events` adds explicit owner designation/grant/revoke events; duplicate retries do not create duplicate events. Its rows are read-only to the MFA-verified owner and delegated managers and have no client write policy. Existing audit history is not modified or deleted. The Staff access page shows the latest 50 events, and the existing admin Audit log also shows role mutations.
 
 Before migration/bootstrap, Staff access remains unavailable and existing administration continues to work. Missing owner RPCs fail closed. Pushing source triggers the existing Cloudflare deployment workflow; it does not apply a Supabase migration. Apply the migration and perform the explicit owner bootstrap separately. No environment secret changes are required.
 
 ## Validation
 
 Run `npm test`, `npm run typecheck`, `npm run lint`, and `npm run cf:build`. The focused browser smoke test is `npx playwright test tests/e2e/staff.spec.ts` against an unconfigured local server. Database tests apply the migration to PostgreSQL via PGlite and cover unauthorized callers, MFA, confirmed targets, role preservation, grants/revocations, audit atomicity, duplicate retries, public-team separation and last-owner protection. Route tests cover origin checks, session failures, malformed payloads, owner checks, exact lookup and database rejection. Verify the owner/grantee/realtor journeys against staging after database setup; automated tests do not establish that production owner bootstrap or live MFA has been completed.
+
+## Delegated staff management
+
+After the original staff migration, apply `supabase/migrations/202611040001_delegated_staff_access.sql`. This additive migration preserves the existing owner, roles and audit history and appoints nobody automatically. Deploy the matching application code as well; source deployment does not apply database migrations.
+
+The MFA-verified owner can look up an existing confirmed administrator in Staff access and explicitly grant **staff access management**. Delegates can find confirmed accounts and grant/revoke ordinary administrator access. They cannot appoint delegates, change ownership, or demote the owner or any delegated manager. Only the owner can remove a delegation; administrator access can then be revoked separately. Revocation is checked again on subsequent database operations, including existing sessions. Ordinary administrators do not receive this permission automatically.
+
+For the specifically approved developer setup, run `docs/ENABLE_APPROVED_DEVELOPER_STAFF_ACCESS.sql` only after the delegation migration. It verifies the exact existing owner (`micmupropertiesltd@gmail.com`) and developer (`georgemartina18@gmail.com`) UUID/email pairs and confirmed active administrator status, then adds developer delegation without changing the owner or removing either administrator role. It records database setup with a null actor rather than impersonating the owner. Re-running it is safe. This script reflects the owner's approval reported for this setup; it is not a general account bootstrap template.
+
+After activation, sign in as the developer, open **Account security**, enroll/verify your own authenticator, then open `/admin/staff`. Never enroll the developer's authenticator on the owner's account. The owner keeps independent access and exclusive control over appointing/removing delegates. The application does not use a service credential to bypass these checks.

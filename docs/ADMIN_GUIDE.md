@@ -58,8 +58,8 @@ Company settings now includes homepage headline and introduction text. Blank fie
 
 Account dashboards now offer Saved searches, Recently viewed and Notifications. Recent history stays only on the visitor’s device and can be cleared there. Saved searches do not yet generate new-listing alerts. Dashboard notifications do not send email or WhatsApp messages.
 
-## Staff access (company owner only)
+## Staff access (owner and delegated managers)
 
-After the staff-access migration and explicit owner setup, the MFA-verified company owner can use **Staff access** to look up an existing confirmed login by exact email, review its account ID and current permissions, then confirm a grant or revocation of administrator access. Ordinary administrators and realtors cannot manage these permissions. Revocation retains the account and other roles. The owner cannot be removed or demoted. Recent changes appear on Staff access and role changes appear in the existing Audit log.
+After the staff-access migration and explicit owner setup, the MFA-verified company owner can use **Staff access** to look up an existing confirmed login by exact email, review its account ID and current permissions, then confirm a grant or revocation of administrator access. The owner can explicitly delegate staff management to an existing administrator. Delegates can manage ordinary administrators, but cannot appoint delegates or demote the owner or other managers. Administrators without this delegation and realtors cannot manage these permissions. Revocation retains the account and other roles. The owner cannot be removed or demoted. Recent changes appear on Staff access and role changes appear in the existing Audit log.
 
 **Team members** manages public biographies and photographs only; it never creates logins or grants account permissions. See [staff access setup](STAFF_ACCESS_SETUP.md) for migration and owner activation steps.

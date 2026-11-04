@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { staffAccessPermission } from "@/lib/staff-access";
 import { RealtorAdmin } from "@/components/realtor-records";
 import { StaffAccess } from "@/components/staff-access";
 import { notFound, redirect } from "next/navigation";
@@ -45,9 +46,8 @@ export default async function Admin({
     ].includes(tab)
   )
     notFound();
-  const { data: owner, error: ownerError } = await db.rpc("is_company_owner");
-  const isOwner = !ownerError && owner === true;
-  if (tab === "staff" && !isOwner) redirect("/admin");
+  const permission = await staffAccessPermission(db);
+  if (tab === "staff" && !permission.allowed) redirect("/admin");
   const q = await searchParams;
   return (
     <>
@@ -78,7 +78,7 @@ export default async function Admin({
               {label}
             </Link>
           ))}
-          {isOwner && (
+          {permission.allowed && (
             <Link
               href="/admin/staff"
               aria-current={tab === "staff" ? "page" : undefined}
@@ -99,7 +99,26 @@ export default async function Admin({
               .limit(50);
             if (eventsError)
               throw new Error("Access history could not be loaded.");
-            return <StaffAccess staff={data ?? []} events={events ?? []} />;
+            const { data: managers, error: managerError } =
+              permission.delegationReady
+                ? await db.from("staff_access_managers").select("user_id")
+                : { data: [], error: null };
+            if (managerError)
+              throw new Error("Delegated access could not be loaded.");
+            const ids = new Set((managers ?? []).map((m) => m.user_id));
+            return (
+              <StaffAccess
+                staff={(data ?? []).map(
+                  (person: import("@/lib/staff-access").StaffAccount) => ({
+                    ...person,
+                    is_access_manager: ids.has(person.user_id),
+                  }),
+                )}
+                events={events ?? []}
+                isOwner={permission.isOwner}
+                delegationReady={permission.delegationReady}
+              />
+            );
           })()
         ) : tab === "realtors" || tab === "sales" ? (
           <RealtorAdmin db={db} tab={tab} />

@@ -80,4 +80,6 @@ These features record payments and commissions, but do not transfer money.
 
 ### Owner-only staff access
 
-The additive `202610310001_staff_access.sql` migration adds owner-only administrator access management at `/admin/staff`, with MFA, confirmed-account checks, database enforcement, immutable owner protection and access-change history. It assigns no owner automatically. Identify the company owner's confirmed login before running the separate bootstrap. See [staff access setup](docs/STAFF_ACCESS_SETUP.md) and [owner bootstrap template](docs/STAFF_OWNER_BOOTSTRAP.sql). Public team profiles remain separate from account permissions.
+The additive `202610310001_staff_access.sql` migration adds administrator access management initially restricted to the owner at `/admin/staff`, with MFA, confirmed-account checks, database enforcement, immutable owner protection and access-change history. It assigns no owner automatically. Identify the company owner's confirmed login before running the separate bootstrap. See [staff access setup](docs/STAFF_ACCESS_SETUP.md) and [owner bootstrap template](docs/STAFF_OWNER_BOOTSTRAP.sql). Public team profiles remain separate from account permissions.
+
+The additive `202611040001_delegated_staff_access.sql` migration enables owner-approved staff access managers without replacing the owner. Only the owner can appoint or remove delegates; delegates manage ordinary administrators. See [delegation setup](docs/STAFF_ACCESS_SETUP.md#delegated-staff-management).

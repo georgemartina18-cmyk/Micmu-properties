@@ -19,19 +19,25 @@ async function request(body: unknown) {
 export function StaffAccess({
   staff,
   events,
+  isOwner,
+  delegationReady,
 }: {
   staff: StaffAccount[];
   events: StaffAccessEvent[];
+  isOwner: boolean;
+  delegationReady: boolean;
 }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [account, setAccount] = useState<StaffAccount | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [managerConfirmed, setManagerConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   function selectAccount(value: StaffAccount | null) {
     setAccount(value);
     setConfirmed(false);
+    setManagerConfirmed(false);
     setMessage("");
   }
   return (
@@ -39,8 +45,9 @@ export function StaffAccess({
       <div>
         <h2>Staff access</h2>
         <p>
-          Only the company owner can grant or revoke administrator access. Staff
-          must verify MFA before using administration.
+          The company owner and delegated staff access managers can grant or
+          revoke ordinary administrator access. MFA is required. Only the owner
+          can appoint or remove access managers.
         </p>
         <p className="muted">
           Public Team members profiles do not grant account access. Revoking
@@ -100,13 +107,20 @@ export function StaffAccess({
             Current access:{" "}
             {account.is_owner
               ? "Company owner (protected)"
-              : account.is_administrator
-                ? "Administrator"
-                : "No administrator access"}
+              : account.is_access_manager
+                ? "Staff access manager (protected)"
+                : account.is_administrator
+                  ? "Administrator"
+                  : "No administrator access"}
           </p>
           {account.is_owner ? (
             <p className="notice">
               The company owner cannot be removed or demoted here.
+            </p>
+          ) : account.is_access_manager ? (
+            <p className="notice">
+              The owner must remove delegated staff access before administrator
+              access can be revoked.
             </p>
           ) : (
             <>
@@ -155,6 +169,67 @@ export function StaffAccess({
               </button>
             </>
           )}
+          {isOwner &&
+            delegationReady &&
+            !account.is_owner &&
+            account.is_administrator && (
+              <div>
+                <h3>Delegated staff management</h3>
+                <p>
+                  This permission allows management of ordinary administrators.
+                  It does not grant ownership or permission to appoint other
+                  access managers.
+                </p>
+                <label className="consent">
+                  <input
+                    type="checkbox"
+                    checked={managerConfirmed}
+                    disabled={busy}
+                    onChange={(event) =>
+                      setManagerConfirmed(event.target.checked)
+                    }
+                  />
+                  I confirm I want to{" "}
+                  {account.is_access_manager ? "remove" : "grant"}{" "}
+                  staff-access-manager permission for {account.email}.
+                </label>
+                <button
+                  className="button"
+                  disabled={busy || !managerConfirmed}
+                  onClick={async () => {
+                    setBusy(true);
+                    setMessage("");
+                    try {
+                      const result = await request({
+                        action: account.is_access_manager
+                          ? "revoke-manager"
+                          : "grant-manager",
+                        user: account.user_id,
+                      });
+                      setAccount(null);
+                      setConfirmed(false);
+                      setManagerConfirmed(false);
+                      setMessage(result.message);
+                      router.refresh();
+                    } catch (error) {
+                      setMessage(
+                        error instanceof Error
+                          ? error.message
+                          : "Delegation could not be changed.",
+                      );
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                >
+                  {busy
+                    ? "Saving…"
+                    : account.is_access_manager
+                      ? "Remove staff-access-manager permission"
+                      : "Grant staff-access-manager permission"}
+                </button>
+              </div>
+            )}
         </div>
       )}
       <p role="status" aria-live="polite">
@@ -167,9 +242,13 @@ export function StaffAccess({
             <h3>{person.full_name || person.email}</h3>
             <p>
               {person.email} ·{" "}
-              {person.is_owner ? "Company owner (protected)" : "Administrator"}
+              {person.is_owner
+                ? "Company owner (protected)"
+                : person.is_access_manager
+                  ? "Staff access manager (protected)"
+                  : "Administrator"}
             </p>
-            {!person.is_owner && (
+            {!person.is_owner && (isOwner || !person.is_access_manager) && (
               <button
                 className="button button-outline"
                 disabled={busy}

@@ -782,3 +782,336 @@ describe("Staff access rollback and setup", () => {
     );
   });
 });
+
+describe("Delegated staff access", () => {
+  const owner = "88888888-8888-4888-8888-888888888888";
+  const second = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  async function session(user: string, aal: string | null = "aal2") {
+    await db.exec(
+      `reset role;set role authenticated;set request.jwt.claims='${JSON.stringify({ sub: user, role: "authenticated", ...(aal ? { aal } : {}) })}'`,
+    );
+  }
+  it("upgrades populated owner/access tables without assigning delegates or changing history", async () => {
+    await db.exec("reset role");
+    const before = (await db.query("select * from company_owner")).rows;
+    const auditCount = (
+      await db.query<{ n: number }>("select count(*)::int n from audit_logs")
+    ).rows[0].n;
+    await db.exec(
+      readFileSync(
+        "supabase/migrations/202611040001_delegated_staff_access.sql",
+        "utf8",
+      ),
+    );
+    expect((await db.query("select * from company_owner")).rows).toEqual(
+      before,
+    );
+    expect(
+      (await db.query("select * from staff_access_managers")).rows,
+    ).toHaveLength(0);
+    expect(
+      (await db.query<{ n: number }>("select count(*)::int n from audit_logs"))
+        .rows[0].n,
+    ).toBe(auditCount);
+    expect(
+      (
+        await db.query(
+          `select * from user_roles where user_id='${owner}' and role='admin'`,
+        )
+      ).rows,
+    ).toHaveLength(1);
+    await db.exec(
+      `insert into auth.users(id,email,email_confirmed_at) values('${second}','second-manager@example.test',now());insert into user_roles(user_id,role) values('${second}','admin')`,
+    );
+  });
+  it("blocks normal administrators, realtors, clients and missing MFA from delegation", async () => {
+    for (const actor of [admin, one, two, second]) {
+      await session(actor);
+      await expect(
+        db.exec(`select set_staff_administrator('${actor}',true)`),
+      ).rejects.toThrow(/delegated staff access manager/);
+      await expect(
+        db.exec(`select set_staff_access_manager('${actor}',true)`),
+      ).rejects.toThrow(/company owner/);
+      expect(
+        (await db.query("select * from staff_access_managers")).rows,
+      ).toHaveLength(0);
+      await expect(
+        db.exec(
+          `insert into staff_access_managers(user_id) values('${actor}')`,
+        ),
+      ).rejects.toThrow(/permission denied/);
+    }
+    for (const aal of ["aal1", null]) {
+      await session(owner, aal);
+      await expect(
+        db.exec(`select set_staff_access_manager('${admin}',true)`),
+      ).rejects.toThrow(/company owner/);
+      await expect(db.exec("select list_staff_access()")).rejects.toThrow(
+        /delegated staff access manager/,
+      );
+    }
+    for (const name of ["anon", "service_role"]) {
+      await role(name);
+      await expect(db.exec("select can_manage_staff_access()")).rejects.toThrow(
+        /permission denied/,
+      );
+      await expect(
+        db.exec(
+          `insert into staff_access_managers(user_id) values('${admin}')`,
+        ),
+      ).rejects.toThrow(/permission denied/);
+    }
+  });
+  it("lets the owner delegate to existing active confirmed administrators and logs once", async () => {
+    await session(owner);
+    await expect(
+      db.exec(`select set_staff_access_manager('${two}',true)`),
+    ).rejects.toThrow(/administrator/);
+    await expect(
+      db.exec(`select set_staff_access_manager('${crypto.randomUUID()}',true)`),
+    ).rejects.toThrow(/administrator/);
+    await db.exec(
+      `select set_staff_access_manager('${admin}',true);select set_staff_access_manager('${admin}',true)`,
+    );
+    expect(
+      (
+        await db.query(
+          `select action,actor_id,target_id from staff_access_events where action='manager_granted' and target_id='${admin}'`,
+        )
+      ).rows,
+    ).toEqual([
+      { action: "manager_granted", actor_id: owner, target_id: admin },
+    ]);
+    expect(
+      (
+        await db.query(
+          `select * from audit_logs where table_name='staff_access_managers' and record_id='${admin}'`,
+        )
+      ).rows,
+    ).toHaveLength(1);
+  });
+  it("requires delegated managers to verify MFA and does not accept metadata-only permissions", async () => {
+    for (const aal of ["aal1", null]) {
+      await session(admin, aal);
+      expect(
+        (await db.query<{ ok: boolean }>("select can_manage_staff_access() ok"))
+          .rows[0].ok,
+      ).toBe(false);
+      await expect(
+        db.exec(`select set_staff_administrator('${two}',true)`),
+      ).rejects.toThrow(/delegated staff access manager/);
+    }
+    await session(one);
+    await db.exec(
+      `set request.jwt.claims='{"sub":"${one}","aal":"aal2","user_metadata":{"staff_access_manager":true,"owner":true}}'`,
+    );
+    expect(
+      (await db.query<{ ok: boolean }>("select can_manage_staff_access() ok"))
+        .rows[0].ok,
+    ).toBe(false);
+  });
+  it("allows a delegate to manage ordinary admins without giving them delegation", async () => {
+    await session(admin);
+    expect(
+      (await db.query("select * from find_staff_account('two@example.test')"))
+        .rows,
+    ).toHaveLength(1);
+    await db.exec(`select set_staff_administrator('${two}',true)`);
+    expect(
+      (
+        await db.query(
+          `select * from user_roles where user_id='${two}' and role='admin'`,
+        )
+      ).rows,
+    ).toHaveLength(1);
+    await session(two);
+    await expect(
+      db.exec(`select set_staff_administrator('${one}',true)`),
+    ).rejects.toThrow(/delegated staff access manager/);
+    await session(admin);
+    await db.exec(`select set_staff_administrator('${two}',false)`);
+    expect(
+      (await db.query(`select role from user_roles where user_id='${two}'`))
+        .rows,
+    ).toContainEqual({ role: "realtor" });
+    expect(
+      (
+        await db.query(
+          `select * from staff_access_events where actor_id='${admin}' and target_id='${two}'`,
+        )
+      ).rows,
+    ).toHaveLength(2);
+  });
+  it("prevents delegates appointing managers, changing ownership or demoting themselves/other managers", async () => {
+    await session(owner);
+    await db.exec(`select set_staff_access_manager('${second}',true)`);
+    await session(admin);
+    for (const actor of [owner, admin, second])
+      await expect(
+        db.exec(`select set_staff_administrator('${actor}',false)`),
+      ).rejects.toThrow(/owner/);
+    await expect(
+      db.exec(`select set_staff_access_manager('${second}',false)`),
+    ).rejects.toThrow(/company owner/);
+    await expect(
+      db.exec(`select set_staff_access_manager('${one}',true)`),
+    ).rejects.toThrow(/company owner/);
+    await expect(
+      db.exec(`update company_owner set user_id='${admin}'`),
+    ).rejects.toThrow(/permission denied/);
+    await expect(
+      db.exec(`delete from staff_access_managers where user_id='${second}'`),
+    ).rejects.toThrow(/permission denied/);
+    await db.exec("reset role");
+    await expect(
+      db.exec(
+        `delete from user_roles where user_id='${admin}' and role='admin'`,
+      ),
+    ).rejects.toThrow(/revoke delegated staff access/);
+    expect(
+      (await db.query<{ user_id: string }>("select user_id from company_owner"))
+        .rows,
+    ).toEqual([{ user_id: owner }]);
+  });
+  it("revokes delegation immediately for existing sessions while preserving administrator status", async () => {
+    await session(owner);
+    await db.exec(`select set_staff_access_manager('${second}',false)`);
+    await session(second);
+    expect(
+      (await db.query<{ ok: boolean }>("select can_manage_staff_access() ok"))
+        .rows[0].ok,
+    ).toBe(false);
+    await expect(
+      db.exec(`select set_staff_administrator('${one}',true)`),
+    ).rejects.toThrow(/delegated staff access manager/);
+    expect(
+      (
+        await db.query(
+          `select * from user_roles where user_id='${second}' and role='admin'`,
+        )
+      ).rows,
+    ).toHaveLength(1);
+    await session(owner);
+    expect(
+      (
+        await db.query(
+          `select * from staff_access_events where target_id='${second}' and action='manager_revoked'`,
+        )
+      ).rows,
+    ).toHaveLength(1);
+    // Permission rechecks after waiting for the shared owner lock must take a fresh snapshot.
+    await db.exec("reset role");
+    expect(
+      (
+        await db.query<{ provolatile: string }>(
+          "select provolatile from pg_proc where oid='public.can_manage_staff_access()'::regprocedure",
+        )
+      ).rows[0].provolatile,
+    ).toBe("v");
+  });
+  it("denies banned delegates and permits their owner to remove the delegation", async () => {
+    await db.exec(
+      `reset role;update auth.users set banned_until=now()+interval '1 day' where id='${admin}'`,
+    );
+    await session(admin);
+    expect(
+      (await db.query<{ ok: boolean }>("select can_manage_staff_access() ok"))
+        .rows[0].ok,
+    ).toBe(false);
+    await session(owner);
+    await db.exec(`select set_staff_access_manager('${admin}',false)`);
+    await expect(
+      db.exec(`select set_staff_access_manager('${admin}',true)`),
+    ).rejects.toThrow(/administrator/);
+    await db.exec(
+      `reset role;update auth.users set banned_until=null where id='${admin}'`,
+    );
+    await session(owner);
+    await db.exec(`select set_staff_access_manager('${admin}',true)`);
+  });
+  it("rolls back a delegation if its audit event cannot be recorded", async () => {
+    await db.exec(
+      "reset role;create function public.test_reject_manager_event() returns trigger language plpgsql as $$ begin raise exception 'delegation audit unavailable'; end; $$;create trigger test_reject_manager_event before insert on public.staff_access_events for each row execute function public.test_reject_manager_event()",
+    );
+    try {
+      await session(owner);
+      await expect(
+        db.exec(`select set_staff_access_manager('${second}',true)`),
+      ).rejects.toThrow(/audit unavailable/);
+      expect(
+        (
+          await db.query(
+            `select * from staff_access_managers where user_id='${second}'`,
+          )
+        ).rows,
+      ).toHaveLength(0);
+    } finally {
+      await db.exec(
+        "reset role;drop trigger test_reject_manager_event on public.staff_access_events;drop function public.test_reject_manager_event()",
+      );
+    }
+  });
+  it("keeps access history read-only and existing owner guards intact", async () => {
+    await session(admin);
+    expect(
+      (await db.query("select * from staff_access_events")).rows.length,
+    ).toBeGreaterThan(0);
+    await expect(db.exec("delete from staff_access_events")).rejects.toThrow(
+      /permission denied/,
+    );
+    await session(owner);
+    await expect(
+      db.exec(`select set_staff_access_manager('${owner}',true)`),
+    ).rejects.toThrow(/protected staff access/);
+    await expect(
+      db.exec(`select set_staff_administrator('${owner}',false)`),
+    ).rejects.toThrow(/retain administrator/);
+    await db.exec("reset role");
+    await expect(db.exec("delete from company_owner")).rejects.toThrow(
+      /company owner/,
+    );
+    await expect(db.exec("truncate staff_access_managers")).rejects.toThrow(
+      /audited grant/,
+    );
+  });
+  it("bootstraps only the explicitly approved developer under the expected company owner", async () => {
+    const sql = readFileSync(
+      "docs/ENABLE_APPROVED_DEVELOPER_STAFF_ACCESS.sql",
+      "utf8",
+    );
+    await db.exec("reset role;set request.jwt.claims='{}'");
+    await expect(db.exec(sql)).rejects.toThrow(/expected company owner/);
+    await db.exec(`delete from staff_access_managers where user_id='${admin}'`);
+    const approved = sql
+      .replaceAll("06adaa1b-c7e5-41c1-81b9-f1c67c61e76f", owner)
+      .replaceAll("fee91401-0009-4972-945a-db11a3b36d3b", admin)
+      .replaceAll("micmupropertiesltd@gmail.com", "owner@example.test")
+      .replaceAll("georgemartina18@gmail.com", "admin@example.test");
+    await db.exec(approved);
+    const before = (
+      await db.query<{ n: number }>(
+        `select count(*)::int n from staff_access_events where target_id='${admin}' and action='manager_granted'`,
+      )
+    ).rows[0].n;
+    await db.exec(approved);
+    expect(
+      (
+        await db.query<{ n: number }>(
+          `select count(*)::int n from staff_access_events where target_id='${admin}' and action='manager_granted'`,
+        )
+      ).rows[0].n,
+    ).toBe(before);
+    expect(
+      (await db.query<{ user_id: string }>("select user_id from company_owner"))
+        .rows,
+    ).toEqual([{ user_id: owner }]);
+    expect(
+      (
+        await db.query<{ created_by: string | null }>(
+          `select created_by from staff_access_managers where user_id='${admin}'`,
+        )
+      ).rows[0].created_by,
+    ).toBe(null);
+  });
+});

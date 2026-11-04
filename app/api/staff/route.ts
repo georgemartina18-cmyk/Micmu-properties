@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { database } from "@/lib/supabase";
 import { hasSecondFactor } from "@/lib/assurance";
+import { staffAccessPermission } from "@/lib/staff-access";
 import { sameOrigin } from "@/lib/request";
 
 const schema = z.discriminatedUnion("action", [
@@ -10,6 +11,8 @@ const schema = z.discriminatedUnion("action", [
     .strict(),
   z.object({ action: z.literal("grant"), user: z.uuid() }).strict(),
   z.object({ action: z.literal("revoke"), user: z.uuid() }).strict(),
+  z.object({ action: z.literal("grant-manager"), user: z.uuid() }).strict(),
+  z.object({ action: z.literal("revoke-manager"), user: z.uuid() }).strict(),
 ]);
 const json = (body: unknown, status = 200) =>
   NextResponse.json(body, { status, headers: { "Cache-Control": "no-store" } });
@@ -25,10 +28,13 @@ export async function POST(req: NextRequest) {
   if (authError || !user) return json({ error: "Sign in first." }, 401);
   if (!(await hasSecondFactor(db)))
     return json({ error: "Verify MFA in Account security first." }, 403);
-  const { data: owner, error: ownerError } = await db.rpc("is_company_owner");
-  if (ownerError || owner !== true)
+  const permission = await staffAccessPermission(db);
+  if (!permission.allowed)
     return json(
-      { error: "Only the designated company owner can manage staff access." },
+      {
+        error:
+          "Company owner or delegated staff-access-manager permission is required.",
+      },
       403,
     );
   const raw = await req.text();
@@ -57,7 +63,46 @@ export async function POST(req: NextRequest) {
         { error: "No eligible confirmed account found for that email." },
         404,
       );
-    return json({ account: data[0] });
+    let isManager = false;
+    if (permission.delegationReady) {
+      const { data: manager, error: managerError } = await db
+        .from("staff_access_managers")
+        .select("user_id")
+        .eq("user_id", data[0].user_id)
+        .maybeSingle();
+      if (managerError)
+        return json({ error: "Account permissions could not be loaded." }, 503);
+      isManager = Boolean(manager);
+    }
+    return json({ account: { ...data[0], is_access_manager: isManager } });
+  }
+  if (b.action === "grant-manager" || b.action === "revoke-manager") {
+    if (!permission.isOwner || !permission.delegationReady)
+      return json(
+        {
+          error:
+            "Only the company owner may appoint or remove staff access managers.",
+        },
+        403,
+      );
+    const { data, error } = await db.rpc("set_staff_access_manager", {
+      p_user: b.user,
+      p_grant: b.action === "grant-manager",
+    });
+    if (error)
+      return json(
+        {
+          error:
+            "Delegation could not be changed. Grants require a confirmed active administrator; the owner remains protected.",
+        },
+        400,
+      );
+    return json({
+      message:
+        data === true
+          ? "Staff-access-manager permission updated."
+          : "No change was needed.",
+    });
   }
   // Use the caller's authenticated session, never the service credential.
   // The RPC repeats owner/MFA/target checks and commits its audit atomically.
@@ -69,7 +114,7 @@ export async function POST(req: NextRequest) {
     return json(
       {
         error:
-          "Access could not be changed. The account must be confirmed and the owner must retain administrator access.",
+          "Access could not be changed. The account must be confirmed and owners and access managers are protected from administrator revocation.",
       },
       400,
     );
