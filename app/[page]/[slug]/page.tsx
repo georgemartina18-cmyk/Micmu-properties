@@ -1,3 +1,4 @@
+import { publicMetadata } from "@/lib/seo";
 import { notFound } from "next/navigation";
 import { pageDefinitions } from "@/lib/pages";
 import { content } from "@/lib/data";
@@ -35,7 +36,12 @@ export async function generateMetadata({
 }) {
   const { page, slug } = await params;
   const kind = pageDefinitions[page]?.kind;
-  if (!kind) return { title: "Not found" };
+  if (!kind) notFound();
   const item = (await content(kind)).find((c) => c.slug === slug);
-  return { title: item?.title || "Not found", description: item?.summary };
+  if (!item) notFound();
+  return publicMetadata(
+    `/${page}/${encodeURIComponent(item.slug)}`,
+    item.title,
+    (item.summary?.trim() || item.body).slice(0, 160),
+  );
 }

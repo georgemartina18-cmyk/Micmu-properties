@@ -1,16 +1,19 @@
 import type { MetadataRoute } from "next";
+import {
+  SITE_URL,
+  indexingApproved,
+  PRIVATE_PATHS,
+  DRAFT_PATHS,
+} from "@/lib/seo";
+// Evaluate the launch gate at request time as well as during the build.
+export const dynamic = "force-dynamic";
 export default function robots(): MetadataRoute.Robots {
-  const approved = process.env.MICMU_LAUNCH_APPROVED === "true";
   return {
     rules: {
       userAgent: "*",
-      allow: approved ? "/" : undefined,
-      disallow: approved
-        ? ["/admin", "/dashboard", "/api", "/auth", "/login", "/reset-password"]
-        : ["/"],
+      allow: indexingApproved() ? "/" : undefined,
+      disallow: indexingApproved() ? [...PRIVATE_PATHS, ...DRAFT_PATHS] : ["/"],
     },
-    ...(approved && process.env.NEXT_PUBLIC_SITE_URL
-      ? { sitemap: `${process.env.NEXT_PUBLIC_SITE_URL}/sitemap.xml` }
-      : {}),
+    ...(indexingApproved() ? { sitemap: `${SITE_URL}/sitemap.xml` } : {}),
   };
 }

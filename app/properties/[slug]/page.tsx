@@ -2,6 +2,7 @@ import { PlanCalculator } from "@/components/realtor-controls";
 import { PropertyGallery } from "@/components/property-gallery";
 import { RecentlyViewed } from "@/components/recently-viewed";
 import { pricePeriod } from "@/lib/property-search";
+import { publicMetadata } from "@/lib/seo";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { properties, money, settings } from "@/lib/data";
@@ -13,9 +14,19 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const { items } = await properties();
+  const { items, error } = await properties();
+  if (error) throw new Error("Property data is temporarily unavailable.");
   const p = items.find((p) => p.slug === slug);
-  return { title: p?.name || "Property not found" };
+  if (!p) notFound();
+  const meta = publicMetadata(
+    `/properties/${encodeURIComponent(p.slug)}`,
+    p.name,
+    (
+      p.description?.trim() ||
+      `${p.name} in ${p.location}. View property details and contact MICMU to confirm availability or request an inspection.`
+    ).slice(0, 160),
+  );
+  return p.demo ? { ...meta, robots: { index: false, follow: false } } : meta;
 }
 export default async function PropertyPage({
   params,

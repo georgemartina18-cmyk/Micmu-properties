@@ -4,6 +4,7 @@ import Link from "next/link";
 import { PageIntro, EmptyState, ContactBand } from "@/components/ui";
 import { EnquiryForm } from "@/components/enquiry-form";
 import { VerificationForm } from "@/components/verification-form";
+import { publicMetadata, publicPageSeo } from "@/lib/seo-pages";
 import { pageDefinitions } from "@/lib/pages";
 import { properties, settings, content } from "@/lib/data";
 import { databaseConfigured } from "@/lib/supabase";
@@ -13,7 +14,9 @@ export async function generateMetadata({
   params: Promise<{ page: string }>;
 }) {
   const { page } = await params;
-  return { title: pageDefinitions[page]?.eyebrow || "Page not found" };
+  if (!pageDefinitions[page]) notFound();
+  const seo = publicPageSeo[page];
+  return publicMetadata(`/${page}`, seo.title, seo.description);
 }
 export default async function PublicPage({
   params,

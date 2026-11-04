@@ -1,6 +1,11 @@
 import { PlanCalculator } from "@/components/realtor-controls";
 import { PageIntro } from "@/components/ui";
-export const metadata = { title: "Payment plans" };
+import { publicMetadata } from "@/lib/seo";
+export const metadata = publicMetadata(
+  "/payment-plans",
+  "Property payment plans",
+  "Compare outright payment and instalment calculations for MICMU sale properties. Confirm the price and available terms with MICMU before proceeding.",
+);
 export default function PaymentPlans() {
   return (
     <>

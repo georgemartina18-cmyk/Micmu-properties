@@ -5,21 +5,19 @@ import { OfflineRegistration } from "@/components/offline-registration";
 import { Header } from "@/components/header";
 import { settings } from "@/lib/data";
 import { isDemo } from "@/lib/demo";
+import { SITE_URL, indexingApproved } from "@/lib/seo";
 import "./globals.css";
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
-  ),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "MICMU Properties Limited | A considered approach to property",
     template: "%s | MICMU Properties Limited",
   },
   description:
     "Explore MICMU Properties Limited. Property information, enquiries and inspection requests in one considered experience.",
-  robots:
-    process.env.MICMU_LAUNCH_APPROVED === "true"
-      ? { index: true, follow: true }
-      : { index: false, follow: false },
+  robots: indexingApproved()
+    ? { index: true, follow: true }
+    : { index: false, follow: false },
   openGraph: {
     title: "MICMU Properties Limited",
     description: "A considered approach to property.",
@@ -51,11 +49,13 @@ export default async function RootLayout({
         <a className="skip-link" href="#main">
           Skip to content
         </a>
-        <div className="preview-notice">
-          {isDemo()
-            ? "DEVELOPMENT PREVIEW · Sample listings are fictional and not for sale or rent."
-            : "PRE-LAUNCH PREVIEW · Business content and identity await MICMU approval."}
-        </div>
+        {!indexingApproved() && (
+          <div className="preview-notice">
+            {isDemo()
+              ? "DEVELOPMENT PREVIEW · Sample listings are fictional and not for sale or rent."
+              : "PRE-LAUNCH PREVIEW · Business content and identity await MICMU approval."}
+          </div>
+        )}
         <Header />
         <OfflineRegistration />
         <main id="main">{children}</main>
@@ -123,7 +123,9 @@ export default async function RootLayout({
             </div>
             <div className="footer-bottom">
               <span>© {new Date().getFullYear()} MICMU Properties Limited</span>
-              <span>Provisional brand concept · subject to approval</span>
+              {!indexingApproved() && (
+                <span>Provisional brand concept · subject to approval</span>
+              )}
               <div>
                 <Link href="/privacy">Privacy</Link>
                 <Link href="/terms">Terms</Link>

@@ -1,12 +1,16 @@
 import { PropertyFilterForm } from "@/components/property-filters";
 import { filterProperties } from "@/lib/property-search";
 import { SaveSearch } from "@/components/saved-searches";
-import type { Metadata } from "next";
+import { publicMetadata } from "@/lib/seo";
 import Link from "next/link";
 import { properties } from "@/lib/data";
 import { PropertyCard } from "@/components/property-card";
 import { PageIntro, EmptyState } from "@/components/ui";
-export const metadata: Metadata = { title: "Explore properties" };
+export const metadata = publicMetadata(
+  "/properties",
+  "Properties for sale and rent",
+  "Browse MICMU’s published land, houses and apartments. Filter by location, property type and price, then enquire or request an inspection.",
+);
 export default async function Properties({
   searchParams,
 }: {

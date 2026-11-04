@@ -11,6 +11,16 @@ import {
 import { properties, settings, content } from "@/lib/data";
 import { PropertyCard } from "@/components/property-card";
 import { EmptyState, ContactBand } from "@/components/ui";
+import {
+  publicMetadata,
+  businessStructuredData,
+  serializeStructuredData,
+} from "@/lib/seo";
+export const metadata = publicMetadata(
+  "/",
+  "MICMU Properties Limited | Property sales and rentals",
+  "Explore MICMU Properties Limited’s published properties, estates and developments. Enquire about available listings or request a property inspection.",
+);
 export default async function Home() {
   const [{ items, error }, info, testimonials] = await Promise.all([
     properties(),
@@ -27,6 +37,12 @@ export default async function Home() {
     .slice(0, 3);
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: serializeStructuredData(businessStructuredData(info)),
+        }}
+      />
       <section className="hero">
         <div
           className="hero-visual"
