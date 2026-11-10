@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { Settings } from "./types";
 import { isDemo } from "./demo";
+import launchConfig from "./launch-config.json";
 
 // Canonical identity must never fall back to localhost or a deployment preview.
 export const SITE_URL = "https://micmuproperties.com.ng";
@@ -17,7 +18,15 @@ export const PRIVATE_PATHS = [
 // These pages explicitly remain drafts until their actual text is reviewed.
 export const DRAFT_PATHS = ["/privacy", "/terms"];
 export function indexingApproved() {
-  return process.env.MICMU_LAUNCH_APPROVED === "true" && !isDemo();
+  // Shared build/runtime default prevents an unset build variable from leaving
+  // stale noindex headers after the authorised production launch.
+  const configured = process.env.MICMU_LAUNCH_APPROVED;
+  const approved =
+    configured === undefined
+      ? process.env.NODE_ENV === "production" &&
+        launchConfig.publicIndexingEnabled
+      : configured === "true";
+  return approved && !isDemo();
 }
 export function publicMetadata(
   path: string,

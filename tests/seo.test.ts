@@ -21,7 +21,7 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 describe("Search indexing controls", () => {
-  it("fails closed until the exact launch setting is true, and never indexes demo mode", async () => {
+  it("rejects false/malformed overrides and keeps non-production/demo defaults closed", async () => {
     for (const value of [undefined, "false", "TRUE", "1"]) {
       vi.stubEnv("MICMU_LAUNCH_APPROVED", value);
       expect(indexingApproved()).toBe(false);
@@ -32,6 +32,13 @@ describe("Search indexing controls", () => {
     vi.stubEnv("MICMU_DEMO_MODE", "true");
     expect(indexingApproved()).toBe(false);
     expect(properties).not.toHaveBeenCalled();
+  });
+  it("uses the authorised production launch default at build and runtime, while retaining the environment kill switch", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("MICMU_LAUNCH_APPROVED", undefined);
+    expect(indexingApproved()).toBe(true);
+    vi.stubEnv("MICMU_LAUNCH_APPROVED", "false");
+    expect(indexingApproved()).toBe(false);
   });
   it("opens public crawling only, advertises the canonical sitemap, and normalizes site identity", () => {
     vi.stubEnv("MICMU_LAUNCH_APPROVED", "true");

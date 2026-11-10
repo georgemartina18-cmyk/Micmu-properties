@@ -9,5 +9,5 @@
     "enabled": true,
     "logs": { "enabled": true, "invocation_logs": false },
   },
-  "vars": { "MICMU_LAUNCH_APPROVED": "false" },
+  "vars": { "MICMU_LAUNCH_APPROVED": "true" },
 }
