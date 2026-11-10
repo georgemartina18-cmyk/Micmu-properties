@@ -83,14 +83,14 @@ export const pageDefinitions: Record<
   },
   privacy: {
     title: "Your information matters.",
-    eyebrow: "DRAFT PRIVACY NOTICE · LEGAL REVIEW REQUIRED",
+    eyebrow: "INTERIM PRIVACY NOTICE · REVIEW OUTSTANDING",
     description:
-      "This draft must be completed with MICMU’s approved contact details, retention periods and legal review before launch.",
+      "How the website handles information. This interim notice remains subject to owner/legal review.",
   },
   terms: {
     title: "A clear understanding.",
-    eyebrow: "DRAFT TERMS · LEGAL REVIEW REQUIRED",
+    eyebrow: "INTERIM WEBSITE TERMS · REVIEW OUTSTANDING",
     description:
-      "These preliminary terms require professional legal review and company approval before public launch.",
+      "Website use, confirmed payment plans and written transaction agreements. Owner/legal review remains outstanding.",
   },
 };

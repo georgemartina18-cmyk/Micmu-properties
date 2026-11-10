@@ -1,3 +1,4 @@
+import { InterimLegal } from "@/components/interim-legal";
 import { PublicRealtorRegistration } from "@/components/realtor-controls";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -215,98 +216,8 @@ export default async function PublicPage({
               </details>
             ))}
           </div>
-        ) : page === "privacy" ? (
-          <article className="prose">
-            <p className="notice">
-              Draft for professional review. The site must remain noindex and
-              pre-launch until privacy operations and legal documents are
-              approved.
-            </p>
-            <h2>Information you choose to share</h2>
-            <p>
-              Enquiry forms request your name, contact details and the
-              information needed to respond. Inspection requests also include a
-              property, preferred date and attendee count. Account functionality
-              uses your email and authentication details.
-            </p>
-            <h3>Purpose and access</h3>
-            <p>
-              These details are used to respond to requests and manage the
-              services you ask for. Authorised administrators can review
-              submissions. Account data is restricted to the account owner and
-              authorised staff.
-            </p>
-            <h3>Service providers and transfers</h3>
-            <p>
-              The proposed platform uses Cloudflare for hosting and security and
-              Supabase for database and authentication. The company must confirm
-              processing locations, contractual safeguards and any international
-              transfer requirements under applicable Nigerian data protection
-              law before launch.
-            </p>
-            <h3>Your choices</h3>
-            <p>
-              You may request access, correction or deletion of your
-              information, subject to applicable legal requirements. MICMU must
-              publish an approved privacy contact, retention schedule and
-              complaint process before accepting live customer data.
-            </p>
-            <h3>Local device storage</h3>
-            <p>
-              Lite Mode saves one preference on your device. Recently viewed
-              history stores up to 12 property references on this device and can
-              be cleared from the account dashboard. Saved searches and
-              favourites are stored in your account when configured.
-              Authentication uses session cookies when configured. No
-              advertising trackers or optional analytics are enabled. Private
-              dashboards and personal information are not stored by the offline
-              fallback.
-            </p>
-            <h3>Before launch</h3>
-            <p>
-              Required: approved controller identity and address, privacy
-              contact, lawful bases, retention periods, rights process,
-              supervisory authority information, processor agreements and
-              professional legal review.
-            </p>
-          </article>
-        ) : page === "terms" ? (
-          <article className="prose">
-            <p className="notice">
-              Preliminary draft only. Company-specific terms and professional
-              review are required before launch.
-            </p>
-            <h2>Website information</h2>
-            <p>
-              Property information is an invitation to enquire and does not
-              constitute a binding sale offer. Availability, pricing and
-              documents require direct confirmation. No fictional development
-              record is a real listing.
-            </p>
-            <h3>Inspection requests</h3>
-            <p>
-              A saved inspection request is pending review. It is not a
-              confirmed appointment or reservation.
-            </p>
-            <h3>Independent advice</h3>
-            <p>
-              Internal reference verification does not establish legal
-              ownership. Seek independent legal and professional advice before
-              entering a transaction.
-            </p>
-            <h3>Accounts and acceptable use</h3>
-            <p>
-              Protect your sign-in details. Do not attempt unauthorised access,
-              submit false information or upload unlawful content. Access to
-              private records is limited to authorised users.
-            </p>
-            <h3>Outstanding legal decisions</h3>
-            <p>
-              MICMU must approve the contracting entity details, jurisdiction,
-              dispute process, liability provisions, cancellation policies and
-              legally required consumer disclosures before public launch.
-            </p>
-          </article>
+        ) : page === "privacy" || page === "terms" ? (
+          <InterimLegal page={page} />
         ) : (
           <EmptyState title="No approved vacancies published">
             Visit again for company-approved opportunities.

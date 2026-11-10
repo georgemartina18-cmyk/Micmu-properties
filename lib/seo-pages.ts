@@ -69,13 +69,13 @@ export const publicPageSeo: Record<
       "Find guidance on MICMU property enquiries, inspections and verification, with answers to common questions about the next steps.",
   },
   privacy: {
-    title: "Privacy notice — draft",
+    title: "Interim privacy notice",
     description:
-      "MICMU’s draft privacy notice. This document awaits company and professional review and is excluded from search indexing.",
+      "MICMU’s interim privacy notice describes website information handling. Owner/legal review remains outstanding; this page is excluded from search indexing.",
   },
   terms: {
-    title: "Terms — draft",
+    title: "Interim website terms",
     description:
-      "MICMU’s draft website terms. This document awaits company and professional review and is excluded from search indexing.",
+      "MICMU’s interim website terms cover website use and confirmed payment plans. Owner/legal review remains outstanding; this page is excluded from search indexing.",
   },
 };
